@@ -1,0 +1,17 @@
+<testsuites name="results">
+  <testsuite name="all" package="all">
+    <property name="random_seed" value="1787669720" />
+    <testcase name="test_passthrough_and_isolated_decerr" classname="test_sanity" file="/proj_soc/user_dev/danielkim/tt-axi/test/cocotb/axi_lite_isolate/test_sanity.py" lineno="27" time="0.02459096908569336" sim_time_ns="315.002" ratio_time="12809.66190890229" />
+    <testcase name="test_decerr_during_drain" classname="test_drain" file="/proj_soc/user_dev/danielkim/tt-axi/test/cocotb/axi_lite_isolate/test_drain.py" lineno="39" time="0.0049724578857421875" sim_time_ns="389.99999999999994" ratio_time="78432.03682393554" />
+    <testcase name="test_w_lags_aw_into_drain" classname="test_drain" file="/proj_soc/user_dev/danielkim/tt-axi/test/cocotb/axi_lite_isolate/test_drain.py" lineno="115" time="0.0029621124267578125" sim_time_ns="250.0" ratio_time="84399.22730199614" />
+    <testcase name="test_w_before_aw_during_drain" classname="test_drain" file="/proj_soc/user_dev/danielkim/tt-axi/test/cocotb/axi_lite_isolate/test_drain.py" lineno="154" time="0.0035119056701660156" sim_time_ns="300.0" ratio_time="85423.7067209776" />
+    <testcase name="test_sel_aw_frozen_while_unaccepted" classname="test_select_freeze" file="/proj_soc/user_dev/danielkim/tt-axi/test/cocotb/axi_lite_isolate/test_select_freeze.py" lineno="31" time="0.004030942916870117" sim_time_ns="300.0" ratio_time="74424.2739693618" />
+    <testcase name="test_sel_ar_frozen_while_unaccepted" classname="test_select_freeze" file="/proj_soc/user_dev/danielkim/tt-axi/test/cocotb/axi_lite_isolate/test_select_freeze.py" lineno="102" time="0.0036773681640625" sim_time_ns="300.0" ratio_time="81580.08298755187" />
+    <testcase name="test_deisolate_parked_aw_at_err" classname="test_deisolate" file="/proj_soc/user_dev/danielkim/tt-axi/test/cocotb/axi_lite_isolate/test_deisolate.py" lineno="43" time="0.003874540328979492" sim_time_ns="320.0" ratio_time="82590.44243431173" />
+    <testcase name="test_deisolate_parked_ar_at_err" classname="test_deisolate" file="/proj_soc/user_dev/danielkim/tt-axi/test/cocotb/axi_lite_isolate/test_deisolate.py" lineno="109" time="0.0031926631927490234" sim_time_ns="280.0" ratio_time="87701.07684265552" />
+    <testcase name="test_isolate_pulse_mid_drain" classname="test_deisolate" file="/proj_soc/user_dev/danielkim/tt-axi/test/cocotb/axi_lite_isolate/test_deisolate.py" lineno="162" time="0.0044634342193603516" sim_time_ns="310.0" ratio_time="69453.24715560066" />
+    <testcase name="test_aw_gate_closes_before_inner_saturates" classname="test_saturation" file="/proj_soc/user_dev/danielkim/tt-axi/test/cocotb/axi_lite_isolate/test_saturation.py" lineno="68" time="0.00835108757019043" sim_time_ns="610.0" ratio_time="73044.37833671168" />
+    <testcase name="test_ar_gate_closes_before_inner_saturates" classname="test_saturation" file="/proj_soc/user_dev/danielkim/tt-axi/test/cocotb/axi_lite_isolate/test_saturation.py" lineno="161" time="0.005389213562011719" sim_time_ns="410.0" ratio_time="76077.89063882499" />
+    <testcase name="test_randomized_isolate_stress" classname="test_randomized" file="/proj_soc/user_dev/danielkim/tt-axi/test/cocotb/axi_lite_isolate/test_randomized.py" lineno="56" time="0.05523037910461426" sim_time_ns="3979.9990000000003" ratio_time="72061.77224424462" />
+  </testsuite>
+</testsuites>

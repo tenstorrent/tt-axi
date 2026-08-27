@@ -21,8 +21,11 @@
 `endif
 
 // axi_lite_demux: Demultiplex an AXI4-Lite bus from one slave port to multiple master ports.
-//                 The selection signal at the AW and AR channel has to follow the same
-//                 stability rules as the corresponding AXI4-Lite channel.
+//                 The selection signal at the AW and AR channel has to be stable while the
+//                 corresponding request is presented at a master port and not yet accepted.
+//                 A request the demux itself stalls (select FIFO full) is not yet committed
+//                 to a port and its select may still change, matching the
+//                 `slv_*_select_stable` contract of `axi_demux`.
 
 module axi_lite_demux #(
   parameter type         aw_chan_t      = logic, // AXI4-Lite AW channel
@@ -459,11 +462,21 @@ module axi_lite_demux #(
                                                        |=> slv_ar_valid) else
       $fatal(1, "ar_valid was deasserted, when ar_ready = 0 in last cycle.");
     aw_stable: assert property( @(posedge clk_i) (slv_aw_valid && !slv_aw_ready)
-                               |=> $stable(slv_aw_chan)) else
-      $fatal(1, "slv_aw_chan_select unstable with valid set.");
+                               |=> $stable(slv_aw_chan.aw)) else
+      $fatal(1, "slv_aw_chan unstable with valid set.");
     ar_stable: assert property( @(posedge clk_i) (slv_ar_valid && !slv_ar_ready)
-                               |=> $stable(slv_ar_chan)) else
-      $fatal(1, "slv_aw_chan_select unstable with valid set.");
+                               |=> $stable(slv_ar_chan.ar)) else
+      $fatal(1, "slv_ar_chan unstable with valid set.");
+    // The select binds once the request is presented at a master port (its W route is committed
+    // on first presentation); a request stalled at the select FIFO gate is not yet committed and
+    // its select may still change.  Mirrors the `slv_*_select_stable` contract of `axi_demux`.
+    aw_select_stable: assert property( @(posedge clk_i) ((|mst_aw_valids) && !slv_aw_ready)
+                               |=> $stable(slv_aw_chan.select)) else
+      $fatal(1, "slv_aw_select unstable with the AW presented at a master port.");
+    ar_select_stable: assert property( @(posedge clk_i)
+                               (slv_ar_valid && !r_fifo_full && !slv_ar_ready)
+                               |=> $stable(slv_ar_chan.select)) else
+      $fatal(1, "slv_ar_select unstable with the AR presented at a master port.");
     `endif
     `endif
     // pragma translate_on
@@ -499,8 +512,8 @@ module axi_lite_demux_intf #(
   input  logic     clk_i,               // Clock
   input  logic     rst_ni,              // Asynchronous reset active low
   input  logic     test_i,              // Testmode enable
-  input  select_t  slv_aw_select_i,     // has to be stable, when aw_valid
-  input  select_t  slv_ar_select_i,     // has to be stable, when ar_valid
+  input  select_t  slv_aw_select_i,     // stable while the AW is presented and unaccepted
+  input  select_t  slv_ar_select_i,     // stable while the AR is presented and unaccepted
   AXI_LITE.Slave   slv,                 // slave port
   AXI_LITE.Master  mst [NoMstPorts-1:0] // master ports
 );
@@ -550,8 +563,8 @@ module axi_lite_demux_intf #(
     .test_i,
     // slave Port
     .slv_req_i       ( slv_req         ),
-    .slv_aw_select_i ( slv_aw_select_i ), // must be stable while slv_aw_valid_i
-    .slv_ar_select_i ( slv_ar_select_i ), // must be stable while slv_ar_valid_i
+    .slv_aw_select_i ( slv_aw_select_i ), // stable while the AW is presented and unaccepted
+    .slv_ar_select_i ( slv_ar_select_i ), // stable while the AR is presented and unaccepted
     .slv_resp_o      ( slv_resp        ),
     // mster ports
     .mst_reqs_o      ( mst_reqs        ),

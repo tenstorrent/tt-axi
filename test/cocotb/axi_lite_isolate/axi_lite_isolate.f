@@ -1,0 +1,10 @@
++incdir+/proj_soc/user_dev/danielkim/tt-axi/include
++incdir+/proj_soc/user_dev/danielkim/tt-axi/.bender/git/checkouts/common_cells-d16b4e0e5df15866/include
+/proj_soc/user_dev/danielkim/tt-axi/src/axi_pkg.sv
+/proj_soc/user_dev/danielkim/tt-axi/.bender/git/checkouts/common_cells-d16b4e0e5df15866/src/spill_register_flushable.sv
+/proj_soc/user_dev/danielkim/tt-axi/.bender/git/checkouts/common_cells-d16b4e0e5df15866/src/spill_register.sv
+/proj_soc/user_dev/danielkim/tt-axi/.bender/git/checkouts/common_cells-d16b4e0e5df15866/src/fifo_v3.sv
+/proj_soc/user_dev/danielkim/tt-axi/src/axi_intf.sv
+/proj_soc/user_dev/danielkim/tt-axi/src/axi_lite_demux.sv
+/proj_soc/user_dev/danielkim/tt-axi/src/axi_lite_isolate.sv
+/proj_soc/user_dev/danielkim/tt-axi/test/cocotb/axi_lite_isolate/tb_axi_lite_isolate.sv
