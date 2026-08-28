@@ -21,11 +21,8 @@
 `endif
 
 // axi_lite_demux: Demultiplex an AXI4-Lite bus from one slave port to multiple master ports.
-//                 The selection signal at the AW and AR channel has to be stable while the
-//                 corresponding request is presented at a master port and not yet accepted.
-//                 A request the demux itself stalls (select FIFO full) is not yet committed
-//                 to a port and its select may still change, matching the
-//                 `slv_*_select_stable` contract of `axi_demux`.
+//                 The selection signal at the AW and AR channel has to follow the same
+//                 stability rules as the corresponding AXI4-Lite channel.
 
 module axi_lite_demux #(
   parameter type         aw_chan_t      = logic, // AXI4-Lite AW channel
@@ -509,8 +506,8 @@ module axi_lite_demux_intf #(
   input  logic     clk_i,               // Clock
   input  logic     rst_ni,              // Asynchronous reset active low
   input  logic     test_i,              // Testmode enable
-  input  select_t  slv_aw_select_i,     // stable while the AW is presented and unaccepted
-  input  select_t  slv_ar_select_i,     // stable while the AR is presented and unaccepted
+  input  select_t  slv_aw_select_i,     // has to be stable, when aw_valid
+  input  select_t  slv_ar_select_i,     // has to be stable, when ar_valid
   AXI_LITE.Slave   slv,                 // slave port
   AXI_LITE.Master  mst [NoMstPorts-1:0] // master ports
 );
@@ -560,8 +557,8 @@ module axi_lite_demux_intf #(
     .test_i,
     // slave Port
     .slv_req_i       ( slv_req         ),
-    .slv_aw_select_i ( slv_aw_select_i ), // stable while the AW is presented and unaccepted
-    .slv_ar_select_i ( slv_ar_select_i ), // stable while the AR is presented and unaccepted
+    .slv_aw_select_i ( slv_aw_select_i ), // must be stable while slv_aw_valid_i
+    .slv_ar_select_i ( slv_ar_select_i ), // must be stable while slv_ar_valid_i
     .slv_resp_o      ( slv_resp        ),
     // mster ports
     .mst_reqs_o      ( mst_reqs        ),
