@@ -135,7 +135,7 @@ module tb_axi_lite_isolate #(
         .isolated_o
     );
 
-    // Observation mirrors for Cocotb: demux select registers and inner
+    // Observation mirrors for Cocotb: demux select registers and isolation
     // FSM/counter state for failure diagnostics.
     logic       obs_sel_aw;
     logic       obs_sel_ar;
@@ -147,11 +147,11 @@ module tb_axi_lite_isolate #(
 
     assign obs_sel_aw     = u_dut.g_terminate.sel_aw_q;
     assign obs_sel_ar     = u_dut.g_terminate.sel_ar_q;
-    assign obs_state_aw   = u_dut.i_axi_lite_isolate.state_aw_q;
-    assign obs_state_ar   = u_dut.i_axi_lite_isolate.state_ar_q;
-    assign obs_pending_aw = u_dut.i_axi_lite_isolate.pending_aw_q;
-    assign obs_pending_w  = u_dut.i_axi_lite_isolate.pending_w_q;
-    assign obs_pending_ar = u_dut.i_axi_lite_isolate.pending_ar_q;
+    assign obs_state_aw   = u_dut.state_aw_q;
+    assign obs_state_ar   = u_dut.state_ar_q;
+    assign obs_pending_aw = u_dut.pending_aw_q;
+    assign obs_pending_w  = u_dut.pending_w_q;
+    assign obs_pending_ar = u_dut.pending_ar_q;
 
     // The demux-INTERNAL presented-and-unaccepted condition: the exact
     // antecedent of the demux's own select-stability requirement.  This is
