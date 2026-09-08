@@ -1,8 +1,8 @@
 # Copyright 2026 Tenstorrent Inc.
-"""Sanity: reset state, burst pass-through, DECERR while isolated, reopen.
+"""Sanity: reset state, burst pass-through, SLVERR while isolated, reopen.
 
 The DUT resets isolated (inner FSMs in Isolate, selects pointing at the
-error slave), passes bursts through transparently once de-isolated, DECERRs
+error slave), passes bursts through transparently once de-isolated, SLVERRs
 everything while isolated, and recovers cleanly on de-isolation.
 """
 
@@ -10,9 +10,9 @@ import cocotb  # pyright: ignore[reportMissingImports]
 from cocotb.triggers import RisingEdge  # pyright: ignore[reportMissingImports]
 
 from helpers import (
-    AXI_RESP_DECERR,
+    AXI_RESP_SLVERR,
     AXI_RESP_OKAY,
-    DECERR_DATA,
+    ISOLATE_ERROR_DATA,
     dbg,
     issue_read,
     issue_write,
@@ -24,8 +24,8 @@ from helpers import (
 
 
 @cocotb.test()
-async def test_passthrough_and_isolated_decerr(dut):
-    """Sanity: burst pass-through with ID echo, DECERR while isolated, reopen."""
+async def test_passthrough_and_isolated_slverr(dut):
+    """Sanity: burst pass-through with ID echo, SLVERR while isolated, reopen."""
     await RisingEdge(dut.clk_i)
     await settle(dut)
     assert dut.isolated_o.value == 1, f"expected isolated out of reset; {dbg(dut)}"
@@ -52,18 +52,18 @@ async def test_passthrough_and_isolated_decerr(dut):
 
     await issue_write(dut, 0x0000_3000, [0xCAFE_1000], txn_id=3)
     await wait_until(dut, lambda: len(mon.b_events) == 2, 20, "B for isolated write")
-    assert mon.b_events[1]["resp"] == AXI_RESP_DECERR and mon.b_events[1]["id"] == 3
+    assert mon.b_events[1]["resp"] == AXI_RESP_SLVERR and mon.b_events[1]["id"] == 3
     assert slave.aw_count == 1, f"isolated write leaked downstream; {dbg(dut)}"
-    dut._log.info("CHK-ISOLATED-WRITE-DECERR: bresp=DECERR with ID echo, nothing leaked")
+    dut._log.info("CHK-ISOLATED-WRITE-SLVERR: bresp=SLVERR with ID echo, nothing leaked")
 
     await issue_read(dut, 0x0000_4000, txn_id=4, num_beats=2)
     await wait_until(dut, lambda: len(mon.r_of(4)) == 2, 20, "R burst for isolated read")
     beats = mon.r_of(4)
-    assert all(b["resp"] == AXI_RESP_DECERR for b in beats)
-    assert all(b["data"] == DECERR_DATA for b in beats), f"r beats={beats}"
+    assert all(b["resp"] == AXI_RESP_SLVERR for b in beats)
+    assert all(b["data"] == ISOLATE_ERROR_DATA for b in beats), f"r beats={beats}"
     assert [b["last"] for b in beats] == [0, 1], f"r beats={beats}"
     assert slave.ar_count == 1
-    dut._log.info("CHK-ISOLATED-READ-DECERR: full-length DECERR burst, rdata=0x1501A7ED")
+    dut._log.info("CHK-ISOLATED-READ-SLVERR: full-length SLVERR burst, rdata=0x1501A7ED")
 
     dut.isolate_i.value = 0
     await wait_until(dut, lambda: dut.isolated_o.value == 0, 10, "re-opening")

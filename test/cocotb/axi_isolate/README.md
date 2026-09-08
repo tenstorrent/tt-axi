@@ -13,7 +13,7 @@ source <a python env with cocotb 1.x>/bin/activate
 
 cd test/cocotb/axi_isolate
 make sim-vcs                             # full suite (15 tests)
-make sim-vcs MODULE=test_drain TESTCASE=test_decerr_during_drain WAVES=1
+make sim-vcs MODULE=test_drain TESTCASE=test_slverr_during_drain WAVES=1
 ```
 
 The Makefile resolves `common_cells` through bender (first run clones it into
@@ -42,20 +42,20 @@ Each test logs `CHK-*` lines marking the property it just proved.
 
 ### test_sanity
 
-* **test_passthrough_and_isolated_decerr** — baseline: resets isolated, passes
+* **test_passthrough_and_isolated_slverr** — baseline: resets isolated, passes
   4-beat write/read through with ID echo and exact data, isolates on an empty
-  drain, DECERRs writes and full-length reads (`0x1501A7ED` marker) while
+  drain, SLVERRs writes and full-length reads (`0x1501A7ED` marker) while
   isolated with nothing leaking downstream, reopens cleanly.
 
 ### test_drain — termination while a drain is in progress
 
-* **test_decerr_during_drain** — loads the drain (in-flight write + read,
-  responses withheld), then offers a new write and read. Both must DECERR
+* **test_slverr_during_drain** — loads the drain (in-flight write + read,
+  responses withheld), then offers a new write and read. Both must SLVERR
   *while the drain is still open* (`isolated_o` low); the in-flight pair
   completes OKAY untouched.
 * **test_w_interlock_midburst_drain** — isolate lands mid W-burst: remaining
   beats drain through; a drain-window write is held by the W interlock until
-  the burst closes, then DECERRed.
+  the burst closes, then SLVERRed.
 * **test_same_id_hash_write_during_drain** — drain-window write colliding with
   the in-flight ID hash is held by the ID interlock until the in-flight B
   returns, then terminated: stalls at demux until in-flight finishes, never a deadlock.
@@ -67,19 +67,19 @@ Each test logs `CHK-*` lines marking the property it just proved.
 
 * **test_sel_aw_frozen_while_unaccepted** — the AW select holds while an AW is
   presented-unaccepted, updates only after the handshake, and the stalled
-  write still lands downstream. A read DECERRs meanwhile: the AR select moved
+  write still lands downstream. A read SLVERRs meanwhile: the AR select moved
   independently.
 * **test_sel_ar_frozen_while_unaccepted** — AR mirror with the divergence
-  check the other way (a write DECERRs while the AR select is frozen). The
+  check the other way (a write SLVERRs while the AR select is frozen). The
   two directions together prove the channels' selects are fully independent.
 
 ### test_deisolate — the select's 1 -> 0 direction
 
 * **test_deisolate_parked_aw_at_err** — `isolate_i` falls with an AW parked at
   the busy error slave: the select holds 1 until acceptance, the parked write
-  DECERRs, and the next write's W data lands on the same port as its AW.
+  SLVERRs, and the next write's W data lands on the same port as its AW.
 * **test_deisolate_parked_ar_at_err** — AR mirror; the parked read returns
-  DECERR, never real data.
+  SLVERR, never real data.
 * **test_isolate_pulse_mid_drain** — `isolate_i` deasserts mid-drain (violating
   the hold-until-`isolated_o` convention). A write offered during the residual
   drain parks and is delivered once the FSM reopens: bounded stall, never a
@@ -111,7 +111,7 @@ Each test logs `CHK-*` lines marking the property it just proved.
   through per-channel pumps while `isolate_i` and the stall knobs toggle at
   random (mid-drain pulses included). End-of-run accounting between issued /
   delivered / answered: one B per write; OKAY iff delivered downstream (per
-  ID); full-length R bursts; DECERR beats carry the marker; W-beat
+  ID); full-length R bursts; SLVERR beats carry the marker; W-beat
   conservation (W data never splits from its AW's route); no OKAY while
   `isolated_o`. Coverage floors keep the checks non-vacuous; the bounded
   final drain is the deadlock watchdog.
