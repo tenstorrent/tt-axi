@@ -2,7 +2,7 @@
 """Drain-window behavior: the original deadlock scenario, as a regression.
 
 New requests arriving while the inner FSM drains must be terminated with
-DECERR by the error slave — never left split across demux ports (the
+SLVERR by the error slave — never left split across demux ports (the
 select-stability deadlock this bench exists for). The demux's W and ID
 interlocks may stall such a request conservatively, but it must always
 resolve once the older traffic retires.
@@ -12,9 +12,9 @@ import cocotb  # pyright: ignore[reportMissingImports]
 from cocotb.triggers import RisingEdge  # pyright: ignore[reportMissingImports]
 
 from helpers import (
-    AXI_RESP_DECERR,
+    AXI_RESP_SLVERR,
     AXI_RESP_OKAY,
-    DECERR_DATA,
+    ISOLATE_ERROR_DATA,
     ST_DRAIN,
     dbg,
     issue_aw,
@@ -33,10 +33,10 @@ from helpers import (
 
 
 @cocotb.test()
-async def test_decerr_during_drain(dut):
-    """A write and a read arriving during Drain are DECERRed by the error
+async def test_slverr_during_drain(dut):
+    """A write and a read arriving during Drain are SLVERRed by the error
     slave while the in-flight transactions complete untouched downstream.
-    With distinct IDs the DECERR responses are observable during the drain."""
+    With distinct IDs the SLVERR responses are observable during the drain."""
     slave, mon = await setup(dut)
 
     slave.release_b = False
@@ -60,22 +60,22 @@ async def test_decerr_during_drain(dut):
 
     # Write during drain. The ID must fall in the other AxiLookBits=1 hash
     # bucket than the in-flight id=1, otherwise the demux ID interlock holds
-    # it behind the withheld B. With a distinct hash its DECERR B is not
+    # it behind the withheld B. With a distinct hash its SLVERR B is not
     # ordered behind the in-flight B and must arrive while the drain is open.
     await issue_write(dut, 0x0000_3000, [0xD00D_0002], txn_id=4)
-    await wait_until(dut, lambda: len(mon.b_of(4)) == 1, 20, "DECERR B during drain")
+    await wait_until(dut, lambda: len(mon.b_of(4)) == 1, 20, "SLVERR B during drain")
     b4 = mon.b_of(4)[0]
-    assert b4["resp"] == AXI_RESP_DECERR and b4["isolated"] == 0, f"b_events={mon.b_events}"
+    assert b4["resp"] == AXI_RESP_SLVERR and b4["isolated"] == 0, f"b_events={mon.b_events}"
     assert slave.aw_count == 1, f"drain-window write leaked downstream; {dbg(dut)}"
-    dut._log.info("CHK-DECERR-WRITE-DURING-DRAIN: DECERR B delivered while draining")
+    dut._log.info("CHK-SLVERR-WRITE-DURING-DRAIN: SLVERR B delivered while draining")
 
     await issue_read(dut, 0x0000_4000, txn_id=5, num_beats=2)
-    await wait_until(dut, lambda: len(mon.r_of(5)) == 2, 20, "DECERR R burst during drain")
+    await wait_until(dut, lambda: len(mon.r_of(5)) == 2, 20, "SLVERR R burst during drain")
     beats = mon.r_of(5)
-    assert all(b["resp"] == AXI_RESP_DECERR and b["data"] == DECERR_DATA for b in beats)
+    assert all(b["resp"] == AXI_RESP_SLVERR and b["data"] == ISOLATE_ERROR_DATA for b in beats)
     assert all(b["isolated"] == 0 for b in beats), f"r beats={beats}"
     assert slave.ar_count == 1, f"drain-window read leaked downstream; {dbg(dut)}"
-    dut._log.info("CHK-DECERR-READ-DURING-DRAIN: DECERR R burst delivered while draining")
+    dut._log.info("CHK-SLVERR-READ-DURING-DRAIN: SLVERR R burst delivered while draining")
 
     slave.release_b = True
     slave.release_r = True
@@ -106,7 +106,7 @@ async def test_decerr_during_drain(dut):
 async def test_w_interlock_midburst_drain(dut):
     """Isolate lands mid-way through a write burst: the remaining W beats
     drain through, and a write offered during the drain is held by the demux
-    W interlock until the open burst closes, then cleanly DECERRed."""
+    W interlock until the open burst closes, then cleanly SLVERRed."""
     slave, mon = await setup(dut)
 
     slave.release_b = False
@@ -147,11 +147,11 @@ async def test_w_interlock_midburst_drain(dut):
 
     await issue_w(dut, [0x1B00_00FF])
     await wait_until(dut, lambda: len(mon.b_of(4)) == 1, 20,
-                     "DECERR B for the drain-window write")
+                     "SLVERR B for the drain-window write")
     b4 = mon.b_of(4)[0]
-    assert b4["resp"] == AXI_RESP_DECERR and b4["isolated"] == 0, f"b_events={mon.b_events}"
+    assert b4["resp"] == AXI_RESP_SLVERR and b4["isolated"] == 0, f"b_events={mon.b_events}"
     assert slave.aw_count == 1, f"drain-window write leaked downstream; {dbg(dut)}"
-    dut._log.info("CHK-INTERLOCK-DECERR: held write terminated during drain, none leaked")
+    dut._log.info("CHK-INTERLOCK-SLVERR: held write terminated during drain, none leaked")
 
     slave.release_b = True
     await wait_until(dut, lambda: len(mon.b_of(1)) == 1, 20, "w1 B")
@@ -198,10 +198,10 @@ async def test_same_id_hash_write_during_drain(dut):
     )
     await wc_task
     await wait_until(dut, lambda: len(mon.b_of(3)) == 1, 30,
-                     "DECERR B for the colliding-ID write")
-    assert mon.b_of(3)[0]["resp"] == AXI_RESP_DECERR
+                     "SLVERR B for the colliding-ID write")
+    assert mon.b_of(3)[0]["resp"] == AXI_RESP_SLVERR
     assert slave.aw_count == 1
-    dut._log.info("CHK-IDHASH-COLLISION-RESOLVES: held write DECERRed after B, no deadlock")
+    dut._log.info("CHK-IDHASH-COLLISION-RESOLVES: held write SLVERRed after B, no deadlock")
 
     await wait_until(dut, lambda: dut.isolated_o.value == 1, 10, "isolation after drain")
 
@@ -239,9 +239,9 @@ async def test_w_before_aw_during_drain(dut):
     # the drain, routes to the error slave, and the waiting beats follow it.
     await issue_aw(dut, 0x0000_2000, 4, len(w2_data))
     await w2_task
-    await wait_until(dut, lambda: len(mon.b_of(4)) == 1, 20, "DECERR B for the W-first write")
+    await wait_until(dut, lambda: len(mon.b_of(4)) == 1, 20, "SLVERR B for the W-first write")
     b4 = mon.b_of(4)[0]
-    assert b4["resp"] == AXI_RESP_DECERR and b4["isolated"] == 0, f"b_events={mon.b_events}"
+    assert b4["resp"] == AXI_RESP_SLVERR and b4["isolated"] == 0, f"b_events={mon.b_events}"
     assert slave.aw_count == 1 and len(slave.w_beats) == 1, (
         f"W-first write leaked downstream; {dbg(dut)}"
     )

@@ -1,9 +1,9 @@
 # Copyright 2026 Tenstorrent Inc.
-"""Sanity: reset state, pass-through, DECERR while isolated, reopen.
+"""Sanity: reset state, pass-through, SLVERR while isolated, reopen.
 
 The DUT resets isolated (inner FSMs in Isolate, selects pointing at the
 error slave), passes writes and reads through transparently once
-de-isolated, DECERRs everything while isolated, and recovers cleanly on
+de-isolated, SLVERRs everything while isolated, and recovers cleanly on
 de-isolation.
 """
 
@@ -11,9 +11,9 @@ import cocotb  # pyright: ignore[reportMissingImports]
 from cocotb.triggers import RisingEdge  # pyright: ignore[reportMissingImports]
 
 from helpers import (
-    AXI_RESP_DECERR,
+    AXI_RESP_SLVERR,
     AXI_RESP_OKAY,
-    DECERR_DATA,
+    ISOLATE_ERROR_DATA,
     dbg,
     issue_read,
     issue_write,
@@ -25,8 +25,8 @@ from helpers import (
 
 
 @cocotb.test()
-async def test_passthrough_and_isolated_decerr(dut):
-    """Sanity: pass-through write/read, DECERR while isolated, reopen."""
+async def test_passthrough_and_isolated_slverr(dut):
+    """Sanity: pass-through write/read, SLVERR while isolated, reopen."""
     await RisingEdge(dut.clk_i)
     await settle(dut)
     assert dut.isolated_o.value == 1, f"expected isolated out of reset; {dbg(dut)}"
@@ -50,16 +50,16 @@ async def test_passthrough_and_isolated_decerr(dut):
 
     await issue_write(dut, 0x0000_3000, 0xCAFE_1000)
     await wait_until(dut, lambda: len(mon.b_events) == 2, 20, "B for isolated write")
-    assert mon.b_events[1]["resp"] == AXI_RESP_DECERR
+    assert mon.b_events[1]["resp"] == AXI_RESP_SLVERR
     assert slave.aw_count == 1, f"isolated write leaked downstream; {dbg(dut)}"
-    dut._log.info("CHK-ISOLATED-WRITE-DECERR: bresp=DECERR, nothing leaked")
+    dut._log.info("CHK-ISOLATED-WRITE-SLVERR: bresp=SLVERR, nothing leaked")
 
     await issue_read(dut, 0x0000_4000)
     await wait_until(dut, lambda: len(mon.r_events) == 2, 20, "R for isolated read")
     r1 = mon.r_events[1]
-    assert r1["resp"] == AXI_RESP_DECERR and r1["data"] == DECERR_DATA, f"r={r1}"
+    assert r1["resp"] == AXI_RESP_SLVERR and r1["data"] == ISOLATE_ERROR_DATA, f"r={r1}"
     assert slave.ar_count == 1
-    dut._log.info("CHK-ISOLATED-READ-DECERR: rresp=DECERR, rdata=0x1501A7ED")
+    dut._log.info("CHK-ISOLATED-READ-SLVERR: rresp=SLVERR, rdata=0x1501A7ED")
 
     dut.isolate_i.value = 0
     await wait_until(dut, lambda: dut.isolated_o.value == 0, 10, "re-opening")

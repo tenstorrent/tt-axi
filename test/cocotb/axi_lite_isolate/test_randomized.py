@@ -16,15 +16,15 @@ issue order there too.
 
 Checks, at end of test after a full drain:
   - every issued write gets exactly one B; OKAY iff its AW reached the
-    downstream model, DECERR otherwise (no lost or duplicated responses);
+    downstream model, SLVERR otherwise (no lost or duplicated responses);
   - the downstream model's AW-address and W-data sequences equal the
     issue-order subsequences of the OKAY writes (no W data stranded on or
     leaked from the error slave, no reordering);
   - every read gets exactly one R; OKAY Rs carry the downstream payload
-    for their address, DECERR Rs carry the 0x1501A7ED marker;
+    for their address, SLVERR Rs carry the 0x1501A7ED marker;
   - no OKAY response completes while isolated_o is high (the Isolate
     state disconnects the downstream B/R paths);
-  - coverage floors: the run must produce both OKAY and DECERR outcomes
+  - coverage floors: the run must produce both OKAY and SLVERR outcomes
     on both channels, else the isolation checks are vacuous;
   - the final drain completes within a bounded time (deadlock watchdog).
 
@@ -39,9 +39,9 @@ import cocotb  # pyright: ignore[reportMissingImports]
 from cocotb.triggers import ClockCycles, RisingEdge  # pyright: ignore[reportMissingImports]
 
 from helpers import (
-    AXI_RESP_DECERR,
+    AXI_RESP_SLVERR,
     AXI_RESP_OKAY,
-    DECERR_DATA,
+    ISOLATE_ERROR_DATA,
     issue_aw,
     issue_read,
     issue_w,
@@ -152,7 +152,7 @@ async def test_randomized_isolate_stress(dut):
 
     delivered_w = [i for i, e in enumerate(mon.b_events) if e["resp"] == AXI_RESP_OKAY]
     for i, e in enumerate(mon.b_events):
-        assert e["resp"] in (AXI_RESP_OKAY, AXI_RESP_DECERR), f"write {i}: bresp={e}"
+        assert e["resp"] in (AXI_RESP_OKAY, AXI_RESP_SLVERR), f"write {i}: bresp={e}"
     assert slave.aw_addrs == [writes[i]["addr"] for i in delivered_w], (
         f"downstream AW sequence does not match the OKAY writes: "
         f"{[hex(a) for a in slave.aw_addrs]}"
@@ -171,8 +171,8 @@ async def test_randomized_isolate_stress(dut):
         if e["resp"] == AXI_RESP_OKAY:
             assert e["data"] == rdata_for(reads[j]["addr"]), f"read {j}: {e}"
         else:
-            assert e["resp"] == AXI_RESP_DECERR, f"read {j}: rresp={e}"
-            assert e["data"] == DECERR_DATA, f"read {j}: DECERR without marker: {e}"
+            assert e["resp"] == AXI_RESP_SLVERR, f"read {j}: rresp={e}"
+            assert e["data"] == ISOLATE_ERROR_DATA, f"read {j}: SLVERR without marker: {e}"
 
     # Continuous invariant: an OKAY response only exists on the downstream
     # path, which the Isolate state disconnects - so no OKAY handshake may
@@ -185,17 +185,17 @@ async def test_randomized_isolate_stress(dut):
     # routes on BOTH channels, or every check above about isolation is
     # vacuously satisfied by an all-downstream (or all-terminated) run.
     n_okay_w = len(delivered_w)
-    n_decerr_w = n_w - n_okay_w
+    n_slverr_w = n_w - n_okay_w
     n_okay_r = len(delivered_r)
-    n_decerr_r = n_r - n_okay_r
-    assert n_okay_w > 0 and n_decerr_w > 0, (
-        f"write coverage floor not met: {n_okay_w} OKAY / {n_decerr_w} DECERR"
+    n_slverr_r = n_r - n_okay_r
+    assert n_okay_w > 0 and n_slverr_w > 0, (
+        f"write coverage floor not met: {n_okay_w} OKAY / {n_slverr_w} SLVERR"
     )
-    assert n_okay_r > 0 and n_decerr_r > 0, (
-        f"read coverage floor not met: {n_okay_r} OKAY / {n_decerr_r} DECERR"
+    assert n_okay_r > 0 and n_slverr_r > 0, (
+        f"read coverage floor not met: {n_okay_r} OKAY / {n_slverr_r} SLVERR"
     )
 
     dut._log.info(
-        f"CHK-RANDOM-ACCOUNTING: {n_w} writes ({n_okay_w} OKAY / {n_decerr_w} DECERR), "
-        f"{n_r} reads ({n_okay_r} OKAY / {n_decerr_r} DECERR), all responses accounted"
+        f"CHK-RANDOM-ACCOUNTING: {n_w} writes ({n_okay_w} OKAY / {n_slverr_w} SLVERR), "
+        f"{n_r} reads ({n_okay_r} OKAY / {n_slverr_r} SLVERR), all responses accounted"
     )

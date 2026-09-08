@@ -22,9 +22,9 @@ import cocotb  # pyright: ignore[reportMissingImports]
 from cocotb.triggers import ReadOnly, RisingEdge  # pyright: ignore[reportMissingImports]
 
 from helpers import (
-    AXI_RESP_DECERR,
+    AXI_RESP_SLVERR,
     AXI_RESP_OKAY,
-    DECERR_DATA,
+    ISOLATE_ERROR_DATA,
     DEMUX_MAX_R,
     DEMUX_MAX_W,
     INNER_PENDING,
@@ -133,11 +133,11 @@ async def test_aw_gate_closes_before_inner_saturates(dut):
     await wait_until(dut, lambda: len(mon.b_events) == DEMUX_MAX_W + 1, 80,
                      "all nine B responses")
     assert [e["resp"] for e in mon.b_events] == [AXI_RESP_OKAY] * DEMUX_MAX_W + [
-        AXI_RESP_DECERR
+        AXI_RESP_SLVERR
     ], f"b_events={mon.b_events}"
     assert slave.aw_count == DEMUX_MAX_W, f"stalled write leaked; {dbg(dut)}"
     await wait_until(dut, lambda: dut.isolated_o.value == 1, 20, "isolation after drain")
-    dut._log.info("CHK-STALLED-WRITE-TERMINATED: gate-stalled write DECERRed after the drain")
+    dut._log.info("CHK-STALLED-WRITE-TERMINATED: gate-stalled write SLVERRed after the drain")
 
     tracker_task.kill()
     assert tracker.peak < INNER_PENDING, (
@@ -163,7 +163,7 @@ async def test_ar_gate_closes_before_inner_saturates(dut):
     """AR mirror: 4 reads with R withheld fill the R-select FIFO and close
     the demux gate; the stalled 5th AR is never presented, the inner stays
     below threshold, the select flips freely on isolate, and the stalled
-    read DECERRs after the drain."""
+    read SLVERRs after the drain."""
     slave, mon = await setup(dut)
     tracker = PeakTracker(dut, pending_ar)
     tracker_task = cocotb.start_soon(tracker.run())
@@ -202,11 +202,11 @@ async def test_ar_gate_closes_before_inner_saturates(dut):
         ev = mon.r_events[i]
         assert ev["resp"] == AXI_RESP_OKAY, f"r_events={mon.r_events}"
         assert ev["data"] == rdata_for(0x0000_1000 + 0x100 * i), f"r_events={mon.r_events}"
-    assert mon.r_events[DEMUX_MAX_R]["resp"] == AXI_RESP_DECERR, f"r_events={mon.r_events}"
-    assert mon.r_events[DEMUX_MAX_R]["data"] == DECERR_DATA
+    assert mon.r_events[DEMUX_MAX_R]["resp"] == AXI_RESP_SLVERR, f"r_events={mon.r_events}"
+    assert mon.r_events[DEMUX_MAX_R]["data"] == ISOLATE_ERROR_DATA
     assert slave.ar_count == DEMUX_MAX_R, f"stalled read leaked; {dbg(dut)}"
     await wait_until(dut, lambda: dut.isolated_o.value == 1, 20, "isolation after drain")
-    dut._log.info("CHK-STALLED-READ-TERMINATED: gate-stalled read DECERRed after the drain")
+    dut._log.info("CHK-STALLED-READ-TERMINATED: gate-stalled read SLVERRed after the drain")
 
     tracker_task.kill()
     assert tracker.peak < INNER_PENDING, (

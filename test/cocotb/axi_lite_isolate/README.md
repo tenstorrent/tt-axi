@@ -14,7 +14,7 @@ source <a python env with cocotb 1.x>/bin/activate
 
 cd test/cocotb/axi_lite_isolate
 make sim-vcs                             # full suite (12 tests)
-make sim-vcs MODULE=test_drain TESTCASE=test_decerr_during_drain WAVES=1
+make sim-vcs MODULE=test_drain TESTCASE=test_slverr_during_drain WAVES=1
 ```
 
 The Makefile resolves `common_cells` through bender (first run clones it into
@@ -39,7 +39,7 @@ after `module load synopsys/verdi/X-2025.06-SP2-3`).
   the inner drain threshold **9**, so the inner's counters can never
   saturate — the saturation tests and elab guard exercise this.
 * Key AXI4-Lite differences from the full bench: with no IDs the DUT has ONE
-  strictly ordered response stream per direction, so termination DECERRs
+  strictly ordered response stream per direction, so termination SLVERRs
   queue *behind* withheld in-flight responses instead of overtaking them,
   and all accounting is positional (`b_events[i]` belongs to the i-th write).
 
@@ -49,18 +49,18 @@ Each test logs `CHK-*` lines marking the property it just proved.
 
 ### test_sanity
 
-* **test_passthrough_and_isolated_decerr** — baseline: resets isolated,
+* **test_passthrough_and_isolated_slverr** — baseline: resets isolated,
   passes a write/read through with exact address and data, isolates on an
-  empty drain, DECERRs writes and reads (`0x1501A7ED` marker) while isolated
+  empty drain, SLVERRs writes and reads (`0x1501A7ED` marker) while isolated
   with nothing leaking downstream, reopens cleanly.
 
 ### test_drain — termination while a drain is in progress
 
-* **test_decerr_during_drain** — loads the drain (in-flight write + read,
+* **test_slverr_during_drain** — loads the drain (in-flight write + read,
   responses withheld), then offers a new write and read. Both are captured
-  by the error slave with nothing leaking downstream; their DECERRs arrive
+  by the error slave with nothing leaking downstream; their SLVERRs arrive
   *after* the in-flight responses (strict lite response ordering), in order
-  `[OKAY, DECERR]` on both channels.
+  `[OKAY, SLVERR]` on both channels.
 * **test_w_lags_aw_into_drain** — isolate lands with a write's W beat still
   owed: the owed beat drains through to the downstream port while a
   drain-window write's beat, queued behind it on the single W channel,
@@ -73,20 +73,20 @@ Each test logs `CHK-*` lines marking the property it just proved.
 
 * **test_sel_aw_frozen_while_unaccepted** — the AW select holds while an AW
   is presented-unaccepted, updates only after the handshake, and the stalled
-  write still lands downstream with its W data. A read DECERRs meanwhile:
+  write still lands downstream with its W data. A read SLVERRs meanwhile:
   the AR select moved independently.
 * **test_sel_ar_frozen_while_unaccepted** — AR mirror with the divergence
-  check the other way (a write DECERRs while the AR select is frozen). The
+  check the other way (a write SLVERRs while the AR select is frozen). The
   two directions together prove the channels' selects are fully independent.
 
 ### test_deisolate — the select's 1 -> 0 direction
 
 * **test_deisolate_parked_aw_at_err** — `isolate_i` falls with an AW parked
-  at the busy error slave (previous DECERR B withheld by the host): the
-  select holds 1 until acceptance, the parked write DECERRs, and the next
+  at the busy error slave (previous SLVERR B withheld by the host): the
+  select holds 1 until acceptance, the parked write SLVERRs, and the next
   write's W data lands on the same port as its AW.
 * **test_deisolate_parked_ar_at_err** — AR mirror; the parked read returns
-  DECERR, never real data.
+  SLVERR, never real data.
 * **test_isolate_pulse_mid_drain** — `isolate_i` deasserts mid-drain
   (violating the hold-until-`isolated_o` convention). A write offered during
   the residual drain parks and is delivered once the FSM reopens: bounded
@@ -112,6 +112,6 @@ Each test logs `CHK-*` lines marking the property it just proved.
   between issued / delivered / answered: one B per write, OKAY iff its
   unique address reached the downstream model; the downstream AW/W
   sequences equal the issue-order OKAY subsequences (W data never splits
-  from its AW's route); OKAY Rs carry the downstream payload, DECERR Rs the
+  from its AW's route); OKAY Rs carry the downstream payload, SLVERR Rs the
   marker; no OKAY while `isolated_o`. Coverage floors keep the checks
   non-vacuous; the bounded final drain is the deadlock watchdog.

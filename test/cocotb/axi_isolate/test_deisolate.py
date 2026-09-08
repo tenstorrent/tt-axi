@@ -19,9 +19,9 @@ import cocotb  # pyright: ignore[reportMissingImports]
 from cocotb.triggers import RisingEdge  # pyright: ignore[reportMissingImports]
 
 from helpers import (
-    AXI_RESP_DECERR,
+    AXI_RESP_SLVERR,
     AXI_RESP_OKAY,
-    DECERR_DATA,
+    ISOLATE_ERROR_DATA,
     ST_DRAIN,
     ar_unaccepted,
     aw_unaccepted,
@@ -44,7 +44,7 @@ from helpers import (
 async def test_deisolate_parked_aw_at_err(dut):
     """isolate_i falls while an AW is parked unaccepted at the busy error
     slave: sel_aw_q must hold 1 until the error slave accepts, the parked
-    write still DECERRs, and only the next write goes downstream - with its
+    write still SLVERRs, and only the next write goes downstream - with its
     W data arriving at the downstream port, not left at the error slave.
 
     The error slave accepts a new AW only once the previous W burst is fully
@@ -91,12 +91,12 @@ async def test_deisolate_parked_aw_at_err(dut):
     await aw2_task
     await issue_w(dut, [0xDE15_0010])
     await wait_until(dut, lambda: len(mon.b_of(1)) == 1 and len(mon.b_of(3)) == 1, 30,
-                     "both DECERR responses")
-    assert mon.b_of(1)[0]["resp"] == AXI_RESP_DECERR
-    assert mon.b_of(3)[0]["resp"] == AXI_RESP_DECERR
+                     "both SLVERR responses")
+    assert mon.b_of(1)[0]["resp"] == AXI_RESP_SLVERR
+    assert mon.b_of(3)[0]["resp"] == AXI_RESP_SLVERR
     assert slave.aw_count == 0, f"parked write leaked downstream; {dbg(dut)}"
     assert len(slave.w_beats) == 0, f"W data leaked downstream: {slave.w_beats}"
-    dut._log.info("CHK-PARKED-AW-DECERRS: parked write terminated at the error slave")
+    dut._log.info("CHK-PARKED-AW-SLVERRS: parked write terminated at the error slave")
 
     # Only after the parked handshake may the select fall; the next write
     # goes downstream with its W data intact.
@@ -114,7 +114,7 @@ async def test_deisolate_parked_aw_at_err(dut):
 async def test_deisolate_parked_ar_at_err(dut):
     """AR mirror: isolate_i falls while an AR is parked unaccepted at the
     busy error slave. sel_ar_q must hold 1 until acceptance; the parked read
-    returns DECERR, never real downstream data."""
+    returns SLVERR, never real downstream data."""
     slave, mon = await setup(dut)
 
     dut.isolate_i.value = 1
@@ -146,17 +146,17 @@ async def test_deisolate_parked_ar_at_err(dut):
     await rd2_task
     try:
         await wait_until(dut, lambda: len(mon.r_of(1)) == 1 and len(mon.r_of(3)) == 1, 60,
-                         "both DECERR reads")
+                         "both SLVERR reads")
     except AssertionError:
         dut._log.error(f"r_events={mon.r_events} ar_count={slave.ar_count}")
         raise
-    assert mon.r_of(1)[0]["resp"] == AXI_RESP_DECERR
-    assert mon.r_of(3)[0]["resp"] == AXI_RESP_DECERR
-    assert mon.r_of(3)[0]["data"] == DECERR_DATA, (
-        f"parked read returned non-DECERR data: {mon.r_of(3)}"
+    assert mon.r_of(1)[0]["resp"] == AXI_RESP_SLVERR
+    assert mon.r_of(3)[0]["resp"] == AXI_RESP_SLVERR
+    assert mon.r_of(3)[0]["data"] == ISOLATE_ERROR_DATA, (
+        f"parked read returned non-SLVERR data: {mon.r_of(3)}"
     )
     assert slave.ar_count == 0, f"parked read leaked downstream; {dbg(dut)}"
-    dut._log.info("CHK-PARKED-AR-DECERRS: parked read terminated at the error slave")
+    dut._log.info("CHK-PARKED-AR-SLVERRS: parked read terminated at the error slave")
 
     await wait_until(dut, lambda: sel_ar(dut) == 0, 10, "select release after acceptance")
     await issue_read(dut, 0x0000_3000, txn_id=1, num_beats=1)

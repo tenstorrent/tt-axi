@@ -11,9 +11,9 @@ import cocotb  # pyright: ignore[reportMissingImports]
 from cocotb.triggers import RisingEdge  # pyright: ignore[reportMissingImports]
 
 from helpers import (
-    AXI_RESP_DECERR,
+    AXI_RESP_SLVERR,
     AXI_RESP_OKAY,
-    DECERR_DATA,
+    ISOLATE_ERROR_DATA,
     ar_unaccepted,
     aw_unaccepted,
     dbg,
@@ -32,7 +32,7 @@ from helpers import (
 async def test_sel_aw_frozen_while_unaccepted(dut):
     """sel_aw_q holds while an AW is offered and not accepted, updates only
     after the handshake, and the stalled write still lands downstream.
-    Meanwhile sel_ar diverges to the error slave - a read DECERRs at once."""
+    Meanwhile sel_ar diverges to the error slave - a read SLVERRs at once."""
     slave, mon = await setup(dut)
 
     slave.accept_aw = False
@@ -63,14 +63,14 @@ async def test_sel_aw_frozen_while_unaccepted(dut):
     dut._log.info("CHK-SEL-AW-FROZEN: sel_aw_q held 0 for 8 cycles of isolate_i=1 stall")
 
     # The AR select is independent and had nothing unaccepted, so it has
-    # already switched: a read issued now DECERRs while the write is frozen.
+    # already switched: a read issued now SLVERRs while the write is frozen.
     assert sel_ar(dut) == 1, f"sel_ar_q did not diverge; {dbg(dut)}"
     await issue_read(dut, 0x0000_2000, txn_id=7, num_beats=1)
-    await wait_until(dut, lambda: len(mon.r_of(7)) == 1, 20, "DECERR R during AW freeze")
+    await wait_until(dut, lambda: len(mon.r_of(7)) == 1, 20, "SLVERR R during AW freeze")
     r7 = mon.r_of(7)[0]
-    assert r7["resp"] == AXI_RESP_DECERR and r7["data"] == DECERR_DATA
+    assert r7["resp"] == AXI_RESP_SLVERR and r7["data"] == ISOLATE_ERROR_DATA
     assert r7["isolated"] == 0 and slave.ar_count == 0
-    dut._log.info("CHK-SEL-DIVERGENCE: read DECERRed while the AW select stayed frozen")
+    dut._log.info("CHK-SEL-DIVERGENCE: read SLVERRed while the AW select stayed frozen")
 
     slave.accept_aw = True
     slave.accept_w = True
@@ -94,9 +94,9 @@ async def test_sel_aw_frozen_while_unaccepted(dut):
     await wait_until(dut, lambda: dut.isolated_o.value == 1, 10, "isolation after freeze drain")
     await issue_write(dut, 0x0000_3000, [0xF00D_0002], txn_id=3)
     await wait_until(dut, lambda: len(mon.b_of(3)) == 1, 20, "B for post-freeze write")
-    assert mon.b_of(3)[0]["resp"] == AXI_RESP_DECERR
+    assert mon.b_of(3)[0]["resp"] == AXI_RESP_SLVERR
     assert slave.aw_count == 1
-    dut._log.info("CHK-POST-FREEZE-DECERR: next write DECERRed once select took effect")
+    dut._log.info("CHK-POST-FREEZE-SLVERR: next write SLVERRed once select took effect")
 
 
 @cocotb.test()
@@ -133,14 +133,14 @@ async def test_sel_ar_frozen_while_unaccepted(dut):
     dut._log.info("CHK-SEL-AR-FROZEN: sel_ar_q held 0 for 8 cycles of isolate_i=1 stall")
 
     # The AW select is independent and had nothing unaccepted, so it has
-    # already switched: a write issued now DECERRs while the read is frozen.
+    # already switched: a write issued now SLVERRs while the read is frozen.
     assert sel_aw(dut) == 1, f"sel_aw_q did not diverge; {dbg(dut)}"
     await issue_write(dut, 0x0000_4000, [0xF00D_0007], txn_id=7)
-    await wait_until(dut, lambda: len(mon.b_of(7)) == 1, 20, "DECERR B during AR freeze")
+    await wait_until(dut, lambda: len(mon.b_of(7)) == 1, 20, "SLVERR B during AR freeze")
     b7 = mon.b_of(7)[0]
-    assert b7["resp"] == AXI_RESP_DECERR
+    assert b7["resp"] == AXI_RESP_SLVERR
     assert b7["isolated"] == 0 and slave.aw_count == 0
-    dut._log.info("CHK-SEL-DIVERGENCE-AR: write DECERRed while the AR select stayed frozen")
+    dut._log.info("CHK-SEL-DIVERGENCE-AR: write SLVERRed while the AR select stayed frozen")
 
     slave.accept_ar = True
     await wait_until(
@@ -165,7 +165,7 @@ async def test_sel_ar_frozen_while_unaccepted(dut):
     await wait_until(dut, lambda: dut.isolated_o.value == 1, 10, "isolation after freeze drain")
     await issue_read(dut, 0x0000_2000, txn_id=4, num_beats=1)
     await wait_until(dut, lambda: len(mon.r_of(4)) == 1, 20, "R for post-freeze read")
-    assert mon.r_of(4)[0]["resp"] == AXI_RESP_DECERR
-    assert mon.r_of(4)[0]["data"] == DECERR_DATA
+    assert mon.r_of(4)[0]["resp"] == AXI_RESP_SLVERR
+    assert mon.r_of(4)[0]["data"] == ISOLATE_ERROR_DATA
     assert slave.ar_count == 1
-    dut._log.info("CHK-POST-FREEZE-DECERR-READ: next read DECERRed once select took effect")
+    dut._log.info("CHK-POST-FREEZE-SLVERR-READ: next read SLVERRed once select took effect")

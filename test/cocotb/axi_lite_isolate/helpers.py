@@ -30,8 +30,7 @@ from cocotb.triggers import (  # pyright: ignore[reportMissingImports]
 
 AXI_RESP_OKAY = 0b00
 AXI_RESP_SLVERR = 0b10
-AXI_RESP_DECERR = 0b11
-DECERR_DATA = 0x1501A7ED
+ISOLATE_ERROR_DATA = 0x1501A7ED
 
 STATE_NAMES = {0: "Normal", 1: "Hold", 2: "Drain", 3: "Isolate"}
 ST_NORMAL = 0

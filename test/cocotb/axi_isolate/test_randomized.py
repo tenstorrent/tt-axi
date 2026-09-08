@@ -9,15 +9,15 @@ stalled AWs, exercising the demux's presentation-time W-route commitment.
 
 Checks, at end of test after a full drain:
   - every issued write gets exactly one B; OKAY iff its AW reached the
-    downstream model, DECERR otherwise (no lost or duplicated responses);
+    downstream model, SLVERR otherwise (no lost or duplicated responses);
   - every issued read returns a full-length burst with exactly one last
-    beat; OKAY bursts match downstream deliveries; every DECERR beat
+    beat; OKAY bursts match downstream deliveries; every SLVERR beat
     carries the 0x1501A7ED marker;
   - every W beat the downstream model received belongs to a delivered
     write (no W data stranded on or leaked from the error slave);
   - no OKAY response completes while isolated_o is high (the Isolate
     state disconnects the downstream B/R paths);
-  - coverage floors: the run must produce both OKAY and DECERR outcomes
+  - coverage floors: the run must produce both OKAY and SLVERR outcomes
     on both channels, else the isolation checks are vacuous;
   - the final drain completes within a bounded time (deadlock watchdog).
 
@@ -32,9 +32,9 @@ import cocotb  # pyright: ignore[reportMissingImports]
 from cocotb.triggers import ClockCycles, RisingEdge  # pyright: ignore[reportMissingImports]
 
 from helpers import (
-    AXI_RESP_DECERR,
+    AXI_RESP_SLVERR,
     AXI_RESP_OKAY,
-    DECERR_DATA,
+    ISOLATE_ERROR_DATA,
     issue_aw,
     issue_read,
     issue_w,
@@ -142,7 +142,7 @@ async def test_randomized_isolate_stress(dut):
         f"B count mismatch: {len(mon.b_events)} responses for {n_w} writes "
         f"(duplicate or spurious B)"
     )
-    total_okay_w = total_decerr_w = 0
+    total_okay_w = total_slverr_w = 0
     for tid in range(N_IDS):
         issued = sum(1 for t in writes if t["id"] == tid)
         b_events = mon.b_of(tid)
@@ -151,15 +151,15 @@ async def test_randomized_isolate_stress(dut):
         )
         downstream = sum(1 for r in slave.aw_records if r["id"] == tid)
         okay = sum(1 for e in b_events if e["resp"] == AXI_RESP_OKAY)
-        decerr = sum(1 for e in b_events if e["resp"] == AXI_RESP_DECERR)
+        slverr = sum(1 for e in b_events if e["resp"] == AXI_RESP_SLVERR)
         assert okay == downstream, (
             f"id={tid}: {okay} OKAY B but {downstream} AWs delivered downstream"
         )
-        assert okay + decerr == issued, (
+        assert okay + slverr == issued, (
             f"id={tid}: unexpected B resp mix: {b_events}"
         )
         total_okay_w += okay
-        total_decerr_w += decerr
+        total_slverr_w += slverr
 
         r_issued = [t for t in reads if t["id"] == tid]
         r_events = mon.r_of(tid)
@@ -176,8 +176,8 @@ async def test_randomized_isolate_stress(dut):
             f"id={tid}: {okay_lasts} OKAY R bursts but {ds_reads} ARs delivered downstream"
         )
         for e in r_events:
-            if e["resp"] == AXI_RESP_DECERR:
-                assert e["data"] == DECERR_DATA, f"id={tid}: DECERR beat without marker: {e}"
+            if e["resp"] == AXI_RESP_SLVERR:
+                assert e["data"] == ISOLATE_ERROR_DATA, f"id={tid}: SLVERR beat without marker: {e}"
 
     # Every W beat the downstream saw belongs to a delivered write: no W
     # data stranded at the error slave or leaked across the demux ports.
@@ -197,17 +197,17 @@ async def test_randomized_isolate_stress(dut):
     # routes on BOTH channels, or every check above about isolation is
     # vacuously satisfied by an all-downstream (or all-terminated) run.
     total_okay_r = sum(1 for e in mon.r_events if e["last"] and e["resp"] == AXI_RESP_OKAY)
-    total_decerr_r = sum(1 for e in mon.r_events if e["resp"] == AXI_RESP_DECERR)
-    assert total_okay_w > 0 and total_decerr_w > 0, (
-        f"write coverage floor not met: {total_okay_w} OKAY / {total_decerr_w} DECERR"
+    total_slverr_r = sum(1 for e in mon.r_events if e["resp"] == AXI_RESP_SLVERR)
+    assert total_okay_w > 0 and total_slverr_w > 0, (
+        f"write coverage floor not met: {total_okay_w} OKAY / {total_slverr_w} SLVERR"
     )
-    assert total_okay_r > 0 and total_decerr_r > 0, (
+    assert total_okay_r > 0 and total_slverr_r > 0, (
         f"read coverage floor not met: {total_okay_r} OKAY bursts / "
-        f"{total_decerr_r} DECERR beats"
+        f"{total_slverr_r} SLVERR beats"
     )
 
     dut._log.info(
         f"CHK-RANDOM-ACCOUNTING: {n_w} writes ({total_okay_w} OKAY / "
-        f"{total_decerr_w} DECERR), {n_r_last} reads ({total_okay_r} OKAY / "
-        f"{total_decerr_r} DECERR beats), all responses accounted"
+        f"{total_slverr_w} SLVERR), {n_r_last} reads ({total_okay_r} OKAY / "
+        f"{total_slverr_r} SLVERR beats), all responses accounted"
     )

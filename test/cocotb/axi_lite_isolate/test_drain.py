@@ -2,12 +2,12 @@
 """Drain-window behavior: the original deadlock scenario, as a regression.
 
 New requests arriving while the inner FSM drains must be terminated with
-DECERR by the error slave - never left split across demux ports (the
+SLVERR by the error slave - never left split across demux ports (the
 select-stability deadlock this bench exists for).
 
 Key AXI4-Lite difference from the full-AXI bench: with no transaction IDs
 the DUT has ONE strictly ordered response stream per direction (the demux's
-B/R select FIFOs), so a drain-window DECERR is queued BEHIND the withheld
+B/R select FIFOs), so a drain-window SLVERR is queued BEHIND the withheld
 in-flight response instead of overtaking it. The termination handshakes
 still complete during the drain; only the response is deferred.
 """
@@ -16,9 +16,9 @@ import cocotb  # pyright: ignore[reportMissingImports]
 from cocotb.triggers import RisingEdge  # pyright: ignore[reportMissingImports]
 
 from helpers import (
-    AXI_RESP_DECERR,
+    AXI_RESP_SLVERR,
     AXI_RESP_OKAY,
-    DECERR_DATA,
+    ISOLATE_ERROR_DATA,
     ST_DRAIN,
     dbg,
     issue_aw,
@@ -37,10 +37,10 @@ from helpers import (
 
 
 @cocotb.test()
-async def test_decerr_during_drain(dut):
+async def test_slverr_during_drain(dut):
     """A write and a read arriving during Drain are captured by the error
     slave while the in-flight transactions complete untouched downstream.
-    Their DECERR responses are ordered behind the in-flight responses."""
+    Their SLVERR responses are ordered behind the in-flight responses."""
     slave, mon = await setup(dut)
 
     slave.release_b = False
@@ -64,7 +64,7 @@ async def test_decerr_during_drain(dut):
 
     # Write and read during the drain: both handshake at the error slave
     # (the issue_* calls complete), but nothing may leak downstream and -
-    # unlike full AXI with distinct IDs - their DECERR responses stay queued
+    # unlike full AXI with distinct IDs - their SLVERR responses stay queued
     # behind the withheld in-flight B/R for the duration of the window.
     await issue_write(dut, 0x0000_3000, 0xD00D_0002)
     await issue_read(dut, 0x0000_4000)
@@ -90,15 +90,15 @@ async def test_decerr_during_drain(dut):
         30,
         "all responses after release",
     )
-    assert [e["resp"] for e in mon.b_events] == [AXI_RESP_OKAY, AXI_RESP_DECERR], (
+    assert [e["resp"] for e in mon.b_events] == [AXI_RESP_OKAY, AXI_RESP_SLVERR], (
         f"b_events={mon.b_events}"
     )
-    assert [e["resp"] for e in mon.r_events] == [AXI_RESP_OKAY, AXI_RESP_DECERR], (
+    assert [e["resp"] for e in mon.r_events] == [AXI_RESP_OKAY, AXI_RESP_SLVERR], (
         f"r_events={mon.r_events}"
     )
     assert mon.r_events[0]["data"] == rdata_for(0x0000_2000)
-    assert mon.r_events[1]["data"] == DECERR_DATA
-    dut._log.info("CHK-ORDERED-RESPONSES: in-flight OKAY first, drain-window DECERR second")
+    assert mon.r_events[1]["data"] == ISOLATE_ERROR_DATA
+    dut._log.info("CHK-ORDERED-RESPONSES: in-flight OKAY first, drain-window SLVERR second")
 
     await wait_until(dut, lambda: dut.isolated_o.value == 1, 10, "isolation after drain")
     dut._log.info("CHK-ISOLATED-AFTER-DRAIN: isolated_o asserted once drain completed")
@@ -144,7 +144,7 @@ async def test_w_lags_aw_into_drain(dut):
 
     slave.release_b = True
     await wait_until(dut, lambda: len(mon.b_events) == 2, 30, "both B responses")
-    assert [e["resp"] for e in mon.b_events] == [AXI_RESP_OKAY, AXI_RESP_DECERR], (
+    assert [e["resp"] for e in mon.b_events] == [AXI_RESP_OKAY, AXI_RESP_SLVERR], (
         f"b_events={mon.b_events}"
     )
     await wait_until(dut, lambda: dut.isolated_o.value == 1, 10, "isolation after drain")
@@ -190,7 +190,7 @@ async def test_w_before_aw_during_drain(dut):
 
     slave.release_b = True
     await wait_until(dut, lambda: len(mon.b_events) == 2, 30, "both B responses")
-    assert [e["resp"] for e in mon.b_events] == [AXI_RESP_OKAY, AXI_RESP_DECERR], (
+    assert [e["resp"] for e in mon.b_events] == [AXI_RESP_OKAY, AXI_RESP_SLVERR], (
         f"b_events={mon.b_events}"
     )
     await wait_until(dut, lambda: dut.isolated_o.value == 1, 10, "isolation after drain")

@@ -24,8 +24,7 @@ from cocotb.triggers import (  # pyright: ignore[reportMissingImports]
 
 AXI_RESP_OKAY = 0b00
 AXI_RESP_SLVERR = 0b10
-AXI_RESP_DECERR = 0b11
-DECERR_DATA = 0x1501A7ED
+ISOLATE_ERROR_DATA = 0x1501A7ED
 BURST_INCR = 0b01
 ATOP_LOAD_ADD = 0x20  # atomic load, little-endian, ADD: returns both B and R
 ATOP_STORE_ADD = 0x10  # atomic store, little-endian, ADD: returns only a B
