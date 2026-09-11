@@ -20,9 +20,31 @@ WAVES ?= 0
 TOPLEVEL_LANG = verilog
 TOPLEVEL = tb_axi_isolate
 # One module per topic; helpers.py is shared. Cocotb runs them in list order.
-MODULE = test_sanity,test_drain,test_select_freeze,test_deisolate,test_saturation,test_atop,test_randomized
+MODULE = test_sanity,test_drain,test_select_freeze,test_deisolate,test_saturation,test_atop,test_flush,test_randomized
 FILELIST := $(CURDIR)/axi_isolate.f
 VERILOG_SOURCES += $(CURDIR)/tb_axi_isolate.sv
+
+# RTL compiled through the filelist.  Cocotb only rebuilds the simulator when
+# an explicit compile dependency changes, so track these sources separately to
+# avoid re-running tests against a stale executable after an RTL edit.
+RTL_SOURCES := \
+	$(AXI_ROOT)/src/axi_pkg.sv \
+	$(CC_ROOT)/src/cf_math_pkg.sv \
+	$(CC_ROOT)/src/spill_register_flushable.sv \
+	$(CC_ROOT)/src/spill_register.sv \
+	$(CC_ROOT)/src/fifo_v3.sv \
+	$(CC_ROOT)/src/delta_counter.sv \
+	$(CC_ROOT)/src/counter.sv \
+	$(CC_ROOT)/src/lzc.sv \
+	$(CC_ROOT)/src/rr_arb_tree.sv \
+	$(CC_ROOT)/src/stream_register.sv \
+	$(AXI_ROOT)/src/axi_demux_id_counters.sv \
+	$(AXI_ROOT)/src/axi_demux_simple.sv \
+	$(AXI_ROOT)/src/axi_demux.sv \
+	$(AXI_ROOT)/src/axi_atop_filter.sv \
+	$(AXI_ROOT)/src/axi_err_slv.sv \
+	$(AXI_ROOT)/src/axi_isolate.sv
+CUSTOM_COMPILE_DEPS += $(RTL_SOURCES)
 
 COCOTB_HDL_TIMEUNIT = 1ns
 COCOTB_HDL_TIMEPRECISION = 1ps
@@ -51,22 +73,7 @@ filelist:
 	@printf "%s\n" \
 		"+incdir+$(AXI_ROOT)/include" \
 		"+incdir+$(CC_ROOT)/include" \
-		"$(AXI_ROOT)/src/axi_pkg.sv" \
-		"$(CC_ROOT)/src/cf_math_pkg.sv" \
-		"$(CC_ROOT)/src/spill_register_flushable.sv" \
-		"$(CC_ROOT)/src/spill_register.sv" \
-		"$(CC_ROOT)/src/fifo_v3.sv" \
-		"$(CC_ROOT)/src/delta_counter.sv" \
-		"$(CC_ROOT)/src/counter.sv" \
-		"$(CC_ROOT)/src/lzc.sv" \
-		"$(CC_ROOT)/src/rr_arb_tree.sv" \
-		"$(CC_ROOT)/src/stream_register.sv" \
-		"$(AXI_ROOT)/src/axi_demux_id_counters.sv" \
-		"$(AXI_ROOT)/src/axi_demux_simple.sv" \
-		"$(AXI_ROOT)/src/axi_demux.sv" \
-		"$(AXI_ROOT)/src/axi_atop_filter.sv" \
-		"$(AXI_ROOT)/src/axi_err_slv.sv" \
-		"$(AXI_ROOT)/src/axi_isolate.sv" \
+		$(RTL_SOURCES) \
 		"$(CURDIR)/tb_axi_isolate.sv" \
 		> $(FILELIST)
 

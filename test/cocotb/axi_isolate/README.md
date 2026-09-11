@@ -12,7 +12,7 @@ module load synopsys/vcs/W-2024.09-SP2-5
 source <a python env with cocotb 1.x>/bin/activate
 
 cd test/cocotb/axi_isolate
-make sim-vcs                             # full suite (15 tests)
+make sim-vcs                             # full suite (24 tests)
 make sim-vcs MODULE=test_drain TESTCASE=test_slverr_during_drain WAVES=1
 ```
 
@@ -104,6 +104,41 @@ Each test logs `CHK-*` lines marking the property it just proved.
   may be injected (crediting must key on `atop[ATOP_R_RESP]`, not on any
   non-zero atop), drain closes on the B alone, filtered store gets SLVERR B
   with no R.
+
+### test_flush — recovery from a forced-reset wedge
+
+All flush tests pulse `flush_i` for one cycle and rely on the latched recovery
+window, which closes at de-isolation. Recovering cases prove end-to-end traffic
+after reopening; documented residual cases finish with the cold reset needed
+to clear irrecoverable downstream protocol state.
+
+Late W beats are a primary case: once AW is accepted, a live AXI master must
+finish the burst regardless of timeout length. Late responses are a safety
+net for a timeout that expired while a slow slave was still live. The
+true-hang tests cover states no longer timeout can resolve.
+
+* **test_flush_swallows_stranded_responses** — responses parked at the slave
+  port are masked from the force-reset master and consumed internally; a
+  second isolation proves the demux ID buckets were popped.
+* **test_flush_clears_wedge_and_absorbs_late_responses** — clears a drain
+  wedged by a silent downstream and safely absorbs responses that arrive
+  later in the still-open window.
+* **test_flush_never_responding_slave_leaks_one_bucket** — documents the
+  residual demux-bucket leak when the downstream response never arrives;
+  other buckets and reads remain usable until cold reset.
+* **test_flush_defers_in_hold_aw / _ar** — a request already presented and
+  unaccepted downstream is never retracted; flush applies by itself after
+  eventual acceptance and absorbs the resulting stale response.
+* **test_flush_hold_never_accepted_defers_forever** — documents the true-hang
+  Hold case: isolation cannot complete without retracting an AXI request.
+* **test_flush_w_midburst_defers_then_unwinds** — a parked W beat is preserved
+  until accepted; isolation is not held hostage and later beats are swallowed
+  so upstream routing can unwind.
+* **test_flush_w_parked_never_accepted_isolation_proceeds** — documents a
+  permanently parked W beat: isolation completes, but the burst remains
+  wedged until downstream acceptance or cold reset.
+* **test_flush_absorbs_late_w_at_slave_port** — W beats arriving after the
+  counter clear are accepted at the slave port but never forwarded.
 
 ### test_randomized — the unknown-unknowns net
 

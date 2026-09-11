@@ -76,6 +76,16 @@ def pending_ar(dut) -> int:
     return int(dut.obs_pending_ar.value)
 
 
+def pending_w(dut) -> int:
+    return int(dut.obs_pending_w.value)
+
+
+def flush_active(dut) -> int:
+    """The DUT's latched recovery-flush window (opens on flush_i, closes at
+    de-isolation)."""
+    return int(dut.obs_flush_active.value)
+
+
 def aw_unaccepted(dut) -> int:
     """Demux-internal AW presented-and-unaccepted (the D4 antecedent)."""
     return int(dut.obs_demux_aw_unaccepted.value)
@@ -110,6 +120,14 @@ class DownstreamSlave:
     hold owed responses so a drain window can be stretched indefinitely.
     Handles bursts (R beats per ar.len, B after w.last) and atomic loads
     (an AW with the R-response ATOP bit owes an R burst as well as a B).
+
+    Deposits land just after the rising edge; handshake accounting samples
+    at the FALLING edge (settled), for the same reason as RespMonitor: a
+    test deposit 1 ps after the rising edge (e.g. flush_i forcing the
+    response readies mid-cycle) is invisible to a ReadOnly sample on the
+    deposit edge, and mispredicting a handshake makes the model hold a
+    response valid one cycle too long - a protocol violation the DUT
+    rightly flags as a double pop.
     """
 
     def __init__(self, dut):
@@ -147,6 +165,7 @@ class DownstreamSlave:
             d.mst_r_data_i.value = rdata_for(head["addr"], head["beat"]) if r_show else 0
             d.mst_r_resp_i.value = AXI_RESP_OKAY
             d.mst_r_last_i.value = 1 if (r_show and head["beat"] == head["len"]) else 0
+            await FallingEdge(d.clk_i)
             await ReadOnly()
             if d.mst_aw_ready_i.value and d.mst_aw_valid_o.value:
                 rec = {
@@ -350,6 +369,7 @@ async def setup(dut, deisolate: bool = True):
     await settle(dut)
     dut.rst_ni.value = 0
     dut.isolate_i.value = 1
+    dut.flush_i.value = 0
     dut.slv_aw_valid_i.value = 0
     dut.slv_w_valid_i.value = 0
     dut.slv_b_ready_i.value = 0

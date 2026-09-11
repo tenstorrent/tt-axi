@@ -42,7 +42,7 @@ In addition to the documents linked in the following table, we are setting up [d
 | [`axi_interleaved_xbar`](src/axi_interleaved_xbar.sv)       | Interleaved version of the crossbar. This module is experimental; use at your own risk.              |                                  |
 | [`axi_intf`](src/axi_intf.sv)                               | This file defines the interfaces we support.                                                         |                                  |
 | [`axi_inval_filter`](src/axi_inval_filter.sv)               | Listens to AXI4 AW channel and issues single cacheline invalidations.                                |                                  |
-| [`axi_isolate`](src/axi_isolate.sv)                         | Isolate an AXI4 slave, optionally terminating isolated transactions with SLVERR.                      |                                  |
+| [`axi_isolate`](src/axi_isolate.sv)                         | Isolate an AXI4 slave, optionally terminating isolated transactions with SLVERR.                      | [Doc](doc/axi_isolate.md)        |
 | [`axi_iw_converter`](src/axi_iw_converter.sv)               | Convert between any two AXI ID widths.                                                               | [Doc][doc.axi_iw_converter]      |
 | [`axi_join`](src/axi_join.sv)                               | A connector that joins two AXI interfaces.                                                           |                                  |
 | [`axi_lfsr`](src/axi_lfsr.sv)                               | AXI4-attached LFSR; read returns pseudo-random data, writes are compressed into a checksum.          |                                  |
