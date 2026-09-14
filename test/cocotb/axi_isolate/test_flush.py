@@ -53,7 +53,7 @@ from cocotb.triggers import (  # pyright: ignore[reportMissingImports]
 from helpers import (
     AXI_RESP_OKAY,
     AXI_RESP_SLVERR,
-    SLVERR_DATA,
+    ISOLATE_ERROR_DATA,
     ST_DRAIN,
     ST_HOLD,
     ST_ISOLATE,
@@ -155,7 +155,7 @@ async def assert_buckets_popped(dut, mon, wr_id: int, rd_id: int, base: int):
     assert mon.b_of(wr_id)[0]["resp"] == AXI_RESP_SLVERR, f"b={mon.b_of(wr_id)}"
     await issue_read(dut, base + 0x100, txn_id=rd_id, num_beats=2)
     await wait_until(dut, lambda: len(mon.r_of(rd_id)) == 2, 30, "same-bucket SLVERR R")
-    assert all(b["resp"] == AXI_RESP_SLVERR and b["data"] == SLVERR_DATA
+    assert all(b["resp"] == AXI_RESP_SLVERR and b["data"] == ISOLATE_ERROR_DATA
                for b in mon.r_of(rd_id)), f"r={mon.r_of(rd_id)}"
     dut.isolate_i.value = 0
     await wait_until(dut, lambda: dut.isolated_o.value == 0, 10, "final reopen")
