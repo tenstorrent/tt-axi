@@ -28,24 +28,27 @@ The full suite has 24 tests. The first run uses Bender to fetch
 - `test_flush`: forced-reset recovery and its limits.
 - `test_randomized`: seeded traffic with changing isolation and backpressure.
 
-The nine flush tests prove that a one-cycle `flush_i` pulse:
+## Recovery contract
 
-- clears a drain left by the reset side;
-- hides late B/R responses;
-- accepts late W beats without forwarding them;
-- keeps counts at zero after late responses; and
-- stays active until `isolate_i` goes low.
+`flush_i` is valid only while `isolate_i` is high. A pulse stays active until
+`isolate_i` goes low. The nine flush tests prove that the flush:
 
-They also prove that the flush does not withdraw AW, AR, or W beats that have
-already been presented to the receiving side. Three tests record the resulting
-limits as passing, bounded checks:
+- clears pending counts and moves safe channels to the isolated state;
+- accepts and hides late B/R responses without counter underflow; and
+- accepts late W beats without forwarding them, allowing upstream routing to
+  finish the burst.
 
-- a response that never arrives can leave one internal AXI ID route in use;
-- an AW or AR that is never accepted can prevent isolation; and
-- an unaccepted W beat can leave its burst blocked even though isolation
-  completes.
+The flush never withdraws AW, AR, or W when `valid` is high and `ready` is low.
+That channel waits for acceptance. Therefore:
 
-See `../../../doc/axi_isolate.md` for the recovery contract.
+- an unaccepted AW or AR can prevent isolation;
+- an unaccepted W can leave its burst blocked after isolation; and
+- a missing response can leave an internal demux ID bucket occupied.
+
+The stuck endpoint must respond, or recovery must reset it and the fabric path
+holding the transaction. With `TerminateTransaction=1`, new isolated traffic
+still receives `SLVERR` and data `0x1501A7ED`. The legacy `axi_isolate_intf`
+wrapper ties `flush_i` low.
 
 ## Files
 
