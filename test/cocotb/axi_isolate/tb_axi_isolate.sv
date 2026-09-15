@@ -29,6 +29,7 @@ module tb_axi_isolate #(
     logic clk_i;
     logic rst_ni;
     logic isolate_i;
+    logic flush_i;
     logic isolated_o;
 
     // Slave port: driven by the Cocotb master.
@@ -176,6 +177,7 @@ module tb_axi_isolate #(
         .mst_req_o  ( mst_req  ),
         .mst_resp_i ( mst_resp ),
         .isolate_i,
+        .flush_i,
         .isolated_o
     );
 
@@ -188,7 +190,9 @@ module tb_axi_isolate #(
     logic [3:0] obs_pending_aw;
     logic [3:0] obs_pending_w;
     logic [3:0] obs_pending_ar;
+    logic       obs_flush_active;
 
+    assign obs_flush_active = u_dut.flush_active;
     assign obs_sel_aw     = u_dut.g_terminate.sel_aw_q;
     assign obs_sel_ar     = u_dut.g_terminate.sel_ar_q;
     assign obs_state_aw   = u_dut.i_axi_isolate.state_aw_q;
@@ -242,6 +246,7 @@ module tb_axi_isolate #(
         clk_i = 1'b0;
         rst_ni = 1'b0;
         isolate_i = 1'b1;
+        flush_i = 1'b0;
 
         slv_aw_valid_i = 1'b0;
         slv_aw_id_i = '0;

@@ -128,11 +128,14 @@ async def test_w_interlock_midburst_drain(dut):
     # The interlock window: every cycle w1's burst is still open, no AW
     # handshake may complete at the slave port. Checked per cycle so an
     # early acceptance fails in the cycle it happens, with state attached.
+    # The break comes after the edge: the model books w1's last beat at the
+    # falling edge, and w2's acceptance may legally begin in the very cycle
+    # the burst closes.
     for cycle in range(40):
-        if slave.w_last_count == 1:
-            break
         await RisingEdge(dut.clk_i)
         await settle(dut)
+        if slave.w_last_count == 1:
+            break
         assert not (dut.slv_aw_valid_i.value and dut.slv_aw_ready_o.value), (
             f"w2 AW accepted at window cycle {cycle} with w1's burst open; {dbg(dut)}"
         )
