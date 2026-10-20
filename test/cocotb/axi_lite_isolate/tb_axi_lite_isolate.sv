@@ -10,11 +10,11 @@
 
 /** @brief Exposes a simulator-friendly lite-isolate harness for Cocotb tests. */
 module tb_axi_lite_isolate #(
-    parameter int unsigned NUM_PENDING = 4
+    parameter int unsigned NUM_PENDING = 4,
+    parameter int unsigned DATA_WIDTH  = 32
 );
 
     localparam int unsigned ADDR_WIDTH = 32;
-    localparam int unsigned DATA_WIDTH = 32;
 
     typedef logic [ADDR_WIDTH-1:0]   addr_t;
     typedef logic [DATA_WIDTH-1:0]   data_t;
@@ -38,8 +38,8 @@ module tb_axi_lite_isolate #(
     logic [31:0] slv_aw_addr_i;
     logic        slv_aw_ready_o;
     logic        slv_w_valid_i;
-    logic [31:0] slv_w_data_i;
-    logic [3:0]  slv_w_strb_i;
+    data_t       slv_w_data_i;
+    strb_t       slv_w_strb_i;
     logic        slv_w_ready_o;
     logic        slv_b_ready_i;
     logic        slv_b_valid_o;
@@ -49,7 +49,7 @@ module tb_axi_lite_isolate #(
     logic        slv_ar_ready_o;
     logic        slv_r_ready_i;
     logic        slv_r_valid_o;
-    logic [31:0] slv_r_data_o;
+    data_t       slv_r_data_o;
     logic [1:0]  slv_r_resp_o;
 
     // Master port: the Cocotb downstream slave model responds here.
@@ -57,7 +57,7 @@ module tb_axi_lite_isolate #(
     logic [31:0] mst_aw_addr_o;
     logic        mst_aw_ready_i;
     logic        mst_w_valid_o;
-    logic [31:0] mst_w_data_o;
+    data_t       mst_w_data_o;
     logic        mst_w_ready_i;
     logic        mst_b_ready_o;
     logic        mst_b_valid_i;
@@ -67,7 +67,7 @@ module tb_axi_lite_isolate #(
     logic        mst_ar_ready_i;
     logic        mst_r_ready_o;
     logic        mst_r_valid_i;
-    logic [31:0] mst_r_data_i;
+    data_t       mst_r_data_i;
     logic [1:0]  mst_r_resp_i;
 
     axi_lite_req_t  slv_req, mst_req;

@@ -10,11 +10,11 @@
 
 /** @brief Exposes a simulator-friendly isolate harness for Cocotb tests. */
 module tb_axi_isolate #(
-    parameter int unsigned NUM_PENDING = 4
+    parameter int unsigned NUM_PENDING = 4,
+    parameter int unsigned DATA_WIDTH  = 32
 );
 
     localparam int unsigned ADDR_WIDTH = 32;
-    localparam int unsigned DATA_WIDTH = 32;
     localparam int unsigned ID_WIDTH   = 4;
     localparam int unsigned USER_WIDTH = 1;
 
@@ -42,8 +42,8 @@ module tb_axi_isolate #(
     logic [5:0]  slv_aw_atop_i;
     logic        slv_aw_ready_o;
     logic        slv_w_valid_i;
-    logic [31:0] slv_w_data_i;
-    logic [3:0]  slv_w_strb_i;
+    data_t       slv_w_data_i;
+    strb_t       slv_w_strb_i;
     logic        slv_w_last_i;
     logic        slv_w_ready_o;
     logic        slv_b_ready_i;
@@ -60,7 +60,7 @@ module tb_axi_isolate #(
     logic        slv_r_ready_i;
     logic        slv_r_valid_o;
     logic [3:0]  slv_r_id_o;
-    logic [31:0] slv_r_data_o;
+    data_t       slv_r_data_o;
     logic [1:0]  slv_r_resp_o;
     logic        slv_r_last_o;
 
@@ -72,7 +72,7 @@ module tb_axi_isolate #(
     logic [5:0]  mst_aw_atop_o;
     logic        mst_aw_ready_i;
     logic        mst_w_valid_o;
-    logic [31:0] mst_w_data_o;
+    data_t       mst_w_data_o;
     logic        mst_w_last_o;
     logic        mst_w_ready_i;
     logic        mst_b_ready_o;
@@ -87,7 +87,7 @@ module tb_axi_isolate #(
     logic        mst_r_ready_o;
     logic        mst_r_valid_i;
     logic [3:0]  mst_r_id_i;
-    logic [31:0] mst_r_data_i;
+    data_t       mst_r_data_i;
     logic [1:0]  mst_r_resp_i;
     logic        mst_r_last_i;
 

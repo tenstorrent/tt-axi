@@ -19,6 +19,8 @@ only inside the background samplers (slave model, monitors) and the
 drivers' same-cycle ready checks, which never deposit afterwards.
 """
 
+import os
+
 import cocotb  # pyright: ignore[reportMissingImports]
 from cocotb.triggers import (  # pyright: ignore[reportMissingImports]
     ClockCycles,
@@ -28,9 +30,11 @@ from cocotb.triggers import (  # pyright: ignore[reportMissingImports]
     Timer,
 )
 
+DATA_WIDTH = int(os.environ.get("DATA_WIDTH", "32"))
 AXI_RESP_OKAY = 0b00
 AXI_RESP_SLVERR = 0b10
-ISOLATE_ERROR_DATA = 0x1501A7ED
+# The 32-bit marker repeats in every 32-bit lane of the data bus.
+ISOLATE_ERROR_DATA = int("1501A7ED" * (DATA_WIDTH // 32), 16)
 
 STATE_NAMES = {0: "Normal", 1: "Hold", 2: "Drain", 3: "Isolate"}
 ST_NORMAL = 0
@@ -308,6 +312,10 @@ async def setup(dut, deisolate: bool = True):
     Returns (slave, monitor). Leaves slv_b_ready_i / slv_r_ready_i high;
     tests that need host-side response backpressure lower them afterwards.
     """
+    assert len(dut.slv_r_data_o) == DATA_WIDTH, (
+        f"DATA_WIDTH={DATA_WIDTH} but the bench was built with "
+        f"{len(dut.slv_r_data_o)}-bit data"
+    )
     await settle(dut)
     dut.rst_ni.value = 0
     dut.isolate_i.value = 1
