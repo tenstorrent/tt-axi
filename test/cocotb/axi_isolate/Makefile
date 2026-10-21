@@ -2,6 +2,7 @@
 #
 #   make sim-vcs          # regenerate filelist, compile, run all test modules
 #   make sim-vcs WAVES=1  # same, with VCD waves
+#   make sim-vcs DATA_WIDTH=64  # same, on a 64-bit data bus (default 32)
 #   make sim-verilator    # alternative simulator flow
 #
 # Requires: VCS, a python env with cocotb, and bender (resolves common_cells).
@@ -17,6 +18,9 @@ endif
 
 SIM ?= vcs
 WAVES ?= 0
+DATA_WIDTH ?= 32
+export DATA_WIDTH
+SIM_BUILD := sim_build_dw$(DATA_WIDTH)
 TOPLEVEL_LANG = verilog
 TOPLEVEL = tb_axi_isolate
 # One module per topic; helpers.py is shared. Cocotb runs them in list order.
@@ -55,6 +59,7 @@ ifeq ($(SIM),vcs)
   COMPILE_ARGS += -f $(FILELIST)
   COMPILE_ARGS += -sverilog -timescale=1ns/1ps -full64 +vcs+lic+wait
   COMPILE_ARGS += -lca +rad -kdb +nospecify -debug_access+all
+  COMPILE_ARGS += -pvalue+$(TOPLEVEL).DATA_WIDTH=$(DATA_WIDTH)
   ifeq ($(WAVES),1)
     SIM_ARGS += +waves
   endif
@@ -62,6 +67,7 @@ else ifeq ($(SIM),verilator)
   VERILOG_SOURCES :=
   EXTRA_ARGS += -f $(FILELIST)
   EXTRA_ARGS += --timing --trace --trace-structs
+  EXTRA_ARGS += -GDATA_WIDTH=$(DATA_WIDTH)
   EXTRA_ARGS += --Wno-UNUSEDSIGNAL --Wno-WIDTH --Wno-PINCONNECTEMPTY --Wno-CASEINCOMPLETE
 endif
 
@@ -87,5 +93,5 @@ sim-verilator: filelist
 
 .PHONY: clean
 clean::
-	rm -rf __pycache__ sim_build simv simv.daidir csrc ucli.key vc_hdrs.h
+	rm -rf __pycache__ sim_build* simv simv.daidir csrc ucli.key vc_hdrs.h
 	rm -rf *.vcd *.vpd *.fst *.fsdb $(FILELIST) results.xml sim_vcs.log

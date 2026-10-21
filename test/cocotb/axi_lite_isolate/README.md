@@ -14,11 +14,14 @@ source <a python env with cocotb 1.x>/bin/activate
 
 cd test/cocotb/axi_lite_isolate
 make sim-vcs                             # full suite (12 tests)
+make sim-vcs DATA_WIDTH=64               # same, on a 64-bit data bus
 make sim-vcs MODULE=test_drain TESTCASE=test_slverr_during_drain WAVES=1
 ```
 
 The Makefile resolves `common_cells` through bender (first run clones it into
-`.bender/`).
+`.bender/`). `DATA_WIDTH` (default 32) sets the bench's data width and gets its
+own `sim_build_dw<width>` directory; isolated reads must carry `0x1501A7ED` in
+every 32-bit lane.
 
 `WAVES=1` dumps `tb_axi_lite_isolate.vcd` (`nWave tb_axi_lite_isolate.vcd &`
 after `module load synopsys/verdi/X-2025.06-SP2-3`).

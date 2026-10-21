@@ -11,11 +11,14 @@ source <python-env-with-cocotb-1.x>/bin/activate
 
 cd test/cocotb/axi_isolate
 make sim-vcs
+make sim-vcs DATA_WIDTH=64
 make sim-vcs MODULE=test_flush TESTCASE=test_flush_swallows_stranded_responses WAVES=1
 ```
 
 The full suite has 24 tests. The first run uses Bender to fetch
-`common_cells`. `WAVES=1` writes `tb_axi_isolate.vcd`.
+`common_cells`. `WAVES=1` writes `tb_axi_isolate.vcd`. `DATA_WIDTH` (default
+32) sets the bench's data width and gets its own `sim_build_dw<width>`
+directory; isolated reads must carry `0x1501A7ED` in every 32-bit lane.
 
 ## Coverage
 
