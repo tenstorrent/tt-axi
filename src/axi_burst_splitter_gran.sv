@@ -93,6 +93,7 @@ module axi_burst_splitter_gran #(
     .clk_i,
     .rst_ni,
     .test_i           ( 1'b0                          ),
+    .sel_hash_i       ( '0                            ),
     .slv_req_i        ( slv_req ),
     .slv_aw_select_i  ( sel_aw_unsupported            ),
     .slv_ar_select_i  ( sel_ar_unsupported            ),
@@ -100,6 +101,7 @@ module axi_burst_splitter_gran #(
     .mst_reqs_o       ( {unsupported_req,  act_req}   ),
     .mst_resps_i      ( {unsupported_resp, act_resp}  )
   );
+
 
   // Define supported transactions.
   function bit txn_supported(axi_pkg::atop_t atop, axi_pkg::burst_t burst, axi_pkg::cache_t cache,

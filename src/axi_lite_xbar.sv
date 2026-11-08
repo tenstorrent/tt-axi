@@ -1,3 +1,6 @@
+// Modified by Tenstorrent
+// UNOPTFLAT warning lint_offs for Verilator
+
 // Copyright (c) 2020 ETH Zurich and University of Bologna.
 // Copyright and related rights are licensed under the Solderpad Hardware
 // License, Version 0.51 (the "License"); you may not use this file except in
@@ -36,7 +39,9 @@ module axi_lite_xbar #(
   input  logic                                        rst_ni,
   input  logic                                        test_i,
   input  axi_req_t  [Cfg.NoSlvPorts-1:0]              slv_ports_req_i,
+  /* verilator lint_off UNOPTFLAT */
   output axi_resp_t [Cfg.NoSlvPorts-1:0]              slv_ports_resp_o,
+  /* verilator lint_on UNOPTFLAT */
   output axi_req_t  [Cfg.NoMstPorts-1:0]              mst_ports_req_o,
   input  axi_resp_t [Cfg.NoMstPorts-1:0]              mst_ports_resp_i,
   input  rule_t [Cfg.NoAddrRules-1:0]                 addr_map_i,

@@ -222,6 +222,7 @@ module axi_dw_upsizer #(
     .clk_i          (clk_i                      ),
     .rst_ni         (rst_ni                     ),
     .test_i         (1'b0                       ),
+    .sel_hash_i     (2'd0                       ),   // unused
     .mst_reqs_o     ({axi_err_req, mst_req_o}   ),
     .mst_resps_i    ({axi_err_resp, mst_resp_i} ),
     .slv_ar_select_i(mst_req_ar_err[mst_req_idx]),

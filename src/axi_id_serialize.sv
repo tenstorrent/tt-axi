@@ -201,6 +201,7 @@ module axi_id_serialize #(
     .clk_i,
     .rst_ni,
     .test_i          ( 1'b0                ),
+    .sel_hash_i      ( 2'd0                ),   // unused
     .slv_req_i       ( slv_req_i           ),
     .slv_aw_select_i ( slv_aw_select       ),
     .slv_ar_select_i ( slv_ar_select       ),

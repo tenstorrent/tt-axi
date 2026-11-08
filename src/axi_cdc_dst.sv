@@ -25,7 +25,7 @@ module axi_cdc_dst #(
   /// Depth of the FIFO crossing the clock domain, given as 2**LOG_DEPTH.
   parameter int unsigned LogDepth = 1,
   /// Number of synchronization registers to insert on the async pointers
-  parameter int unsigned SyncStages = 2,
+  parameter int unsigned SyncStages = 3,
   parameter type aw_chan_t = logic,
   parameter type w_chan_t = logic,
   parameter type b_chan_t = logic,

@@ -58,6 +58,8 @@ import cf_math_pkg::idx_width;
   input  logic                                                          rst_ni,
   /// Testmode enable, active high.
   input  logic                                                          test_i,
+  /// Selection for hash schema for IDs, only used if Cfg.SelHashIds parameter set, if not used, set to 2'b0
+  input  logic      [1:0]                                               sel_hash_i,
   /// AXI4+ATOP requests to the slave ports.
   input  req_t  [Cfg.NoSlvPorts-1:0]                                    slv_ports_req_i,
   /// AXI4+ATOP responses of the slave ports.
@@ -175,6 +177,7 @@ import cf_math_pkg::idx_width;
       .MaxTrans       ( Cfg.MaxMstTrans        ),
       .AxiLookBits    ( Cfg.AxiIdUsedSlvPorts  ),
       .UniqueIds      ( Cfg.UniqueIds          ),
+      .SelHashIds     ( Cfg.SelHashIds         ),
       .SpillAw        ( Cfg.LatencyMode[9]     ),
       .SpillW         ( Cfg.LatencyMode[8]     ),
       .SpillB         ( Cfg.LatencyMode[7]     ),
@@ -184,6 +187,7 @@ import cf_math_pkg::idx_width;
       .clk_i,   // Clock
       .rst_ni,  // Asynchronous reset active low
       .test_i,  // Testmode enable
+      .sel_hash_i,  // Hash selection (if enabled)
       .slv_req_i       ( slv_ports_req_i[i]  ),
       .slv_aw_select_i ( slv_aw_select       ),
       .slv_ar_select_i ( slv_ar_select       ),
@@ -285,8 +289,9 @@ import cf_math_pkg::idx_width;
   input  logic                                                      clk_i,
   input  logic                                                      rst_ni,
   input  logic                                                      test_i,
+  input  logic      [1:0]                                           sel_hash_i,
   AXI_BUS.Slave                                                     slv_ports [Cfg.NoSlvPorts-1:0],
-  AXI_BUS.Master                                                    mst_ports [Cfg.NoMstPorts-1:0][Cfg.NoSlvPorts-1:0],
+  AXI_BUS.Master                                                    mst_ports [Cfg.NoMstPorts*Cfg.NoSlvPorts-1:0],
   input  rule_t [Cfg.NoAddrRules-1:0]                               addr_map_i,
   input  logic  [Cfg.NoSlvPorts-1:0]                                en_default_mst_port_i,
   input  logic  [Cfg.NoSlvPorts-1:0][idx_width(Cfg.NoMstPorts)-1:0] default_mst_port_i
@@ -313,8 +318,8 @@ import cf_math_pkg::idx_width;
 
   for (genvar i = 0; i < Cfg.NoMstPorts; i++) begin : gen_assign_mst
     for (genvar j = 0; j < Cfg.NoSlvPorts; j++) begin : gen_assign_mst_inner
-      `AXI_ASSIGN_FROM_REQ(mst_ports[i][j], mst_reqs[i][j])
-      `AXI_ASSIGN_TO_RESP(mst_resps[i][j], mst_ports[i][j])
+      `AXI_ASSIGN_FROM_REQ(mst_ports[i*Cfg.NoSlvPorts+j], mst_reqs[i][j])
+      `AXI_ASSIGN_TO_RESP(mst_resps[i][j], mst_ports[i*Cfg.NoSlvPorts+j])
     end
   end
 
@@ -339,6 +344,7 @@ import cf_math_pkg::idx_width;
     .clk_i,
     .rst_ni,
     .test_i,
+    .sel_hash_i,
     .slv_ports_req_i  (slv_reqs ),
     .slv_ports_resp_o (slv_resps),
     .mst_ports_req_o  (mst_reqs ),

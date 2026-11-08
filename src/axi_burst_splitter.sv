@@ -31,6 +31,12 @@ module axi_burst_splitter #(
   parameter int unsigned MaxWriteTxns = 32'd0,
   // Internal ID queue can work in two bandwidth modes: see id_queue.sv for details
   parameter bit          FullBW       = 0,
+  // Spill register control
+  parameter bit          SpillAw      = 1'b0,
+  parameter bit          SpillW       = 1'b0,
+  parameter bit          SpillB       = 1'b0,
+  parameter bit          SpillAr      = 1'b0,
+  parameter bit          SpillR       = 1'b0,
   // AXI Bus Types
   parameter int unsigned AddrWidth    = 32'd0,
   parameter int unsigned DataWidth    = 32'd0,

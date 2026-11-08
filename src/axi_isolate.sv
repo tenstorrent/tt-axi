@@ -178,6 +178,7 @@ module axi_isolate #(
       .clk_i,
       .rst_ni,
       .test_i          ( 1'b0          ),
+      .sel_hash_i      ( 2'd0          ),   // unused
       .slv_req_i       ( demux_slv_req ),
       .slv_aw_select_i ( sel_aw_q      ),
       .slv_ar_select_i ( sel_ar_q      ),

@@ -1,3 +1,6 @@
+// Modified by Tenstorrent
+// UNOPTFLAT warning lint_offs for Verilator
+
 // Copyright (c) 2019 ETH Zurich and University of Bologna.
 // Copyright and related rights are licensed under the Solderpad Hardware
 // License, Version 0.51 (the "License"); you may not use this file except in
@@ -49,6 +52,7 @@ module axi_demux_simple #(
   parameter int unsigned MaxTrans       = 32'd8,
   parameter int unsigned AxiLookBits    = 32'd3,
   parameter bit          UniqueIds      = 1'b0,
+  parameter bit          SelHashIds     = 1'b0,
   // Dependent parameters, DO NOT OVERRIDE!
   parameter int unsigned SelectWidth    = (NoMstPorts > 32'd1) ? $clog2(NoMstPorts) : 32'd1,
   parameter type         select_t       = logic [SelectWidth-1:0]
@@ -56,15 +60,32 @@ module axi_demux_simple #(
   input  logic                          clk_i,
   input  logic                          rst_ni,
   input  logic                          test_i,
+  input  logic          [1:0]           sel_hash_i,
   // Slave Port
   input  axi_req_t                      slv_req_i,
   input  select_t                       slv_aw_select_i,
   input  select_t                       slv_ar_select_i,
+  /* verilator lint_off UNOPTFLAT */
   output axi_resp_t                     slv_resp_o,
   // Master Ports
   output axi_req_t    [NoMstPorts-1:0]  mst_reqs_o,
+  /* verilator lint_on UNOPTFLAT */
   input  axi_resp_t   [NoMstPorts-1:0]  mst_resps_i
 );
+
+  function automatic [3:0] id_hash (
+    input [9:0] id,
+    input [1:0] sel_hash
+  );
+    begin
+      unique case (sel_hash)
+            2'b00: id_hash = {2'b00, id[9:8]} ^ id[7:4] ^ id[3:0];
+            2'b01: id_hash = id[3:0];
+            2'b10: id_hash = {id[9], id[2:0]};
+            2'b11: id_hash = {id[9:8], 2'b00} ^ id[7:4] ^ id[3:0];
+      endcase
+    end
+  endfunction
 
   localparam int unsigned IdCounterWidth = cf_math_pkg::idx_width(MaxTrans);
   typedef logic [IdCounterWidth-1:0] id_cnt_t;
@@ -95,14 +116,22 @@ module axi_demux_simple #(
     // Upon an ATOP load, inject IDs from the AW into the AR channel
     logic                     atop_inject;
 
+    // AW ID hash
+    logic   [AxiLookBits-1:0] awid_hash;
+
     // W select counter: stores the decision to which master W beats should go
+    /* verilator lint_off UNOPTFLAT */
     select_t                  w_select,           w_select_q;
     logic                     w_select_valid;
+    /* verilator lint_on UNOPTFLAT */
     id_cnt_t                  w_open;
     logic                     w_cnt_up,           w_cnt_down;
 
     // B channles input into the arbitration
     logic    [NoMstPorts-1:0] mst_b_valids,       mst_b_readies;
+
+    // B ID hash
+    logic   [AxiLookBits-1:0] bid_hash;
 
     //--------------------------------------
     // Read Transaction
@@ -113,16 +142,44 @@ module axi_demux_simple #(
     logic                     ar_select_occupied, ar_id_cnt_full;
     logic                     ar_push;
 
+    // AR ID hash
+    logic   [AxiLookBits-1:0] arid_hash;
+
     // Register which locks the AR valid signel
     logic                     lock_ar_valid_d,    lock_ar_valid_q, load_ar_lock;
     logic                     ar_valid,           ar_ready;
 
     logic    [NoMstPorts-1:0] mst_r_valids, mst_r_readies;
 
+    // R ID hash
+    logic   [AxiLookBits-1:0] rid_hash;
 
 
+    //--------------------------------------
+    // AXI Hash ID Selection
+    //--------------------------------------
+    //--------------------------------------
 
-
+    // ID Hash
+    // If the `SelHashIds` parameter is set (and there are atleast 10 ID bits), AxiHashSel MMR will choose which hashing function to use for write transaction IDs
+    // Four hashing schemes are made available for selection
+    //   Hash 0 - {2’b00, [9,8]}  ^ [7:4] ^ [3:0] // folding (default setting)
+    //   Hash 1 - [3:0] // Core ID + I/D
+    //   Hash 2 - {[9],[2:0]} // Core ID + Strongly Ordered / Relaxed Ordered
+    //   Hash 3 - {[9,8],2’b00} ^ [7:4] ^ [3:0] // bit-3 is I/D xor Strongly Ordered/Relaxed Ordered
+    //
+    // otherwise, hashed ID uses the lower AxiLookBits bits as the hash
+    if (SelHashIds && (AxiIdWidth >= 10)) begin : gen_id_hash
+      assign awid_hash = id_hash(.id(slv_req_i.aw.id[9:0]), .sel_hash(sel_hash_i));
+      assign bid_hash = id_hash(.id(slv_resp_o.b.id[9:0]), .sel_hash(sel_hash_i));
+      assign arid_hash = id_hash(.id(slv_req_i.ar.id[9:0]), .sel_hash(sel_hash_i));
+      assign rid_hash = id_hash(.id(slv_resp_o.r.id[9:0]), .sel_hash(sel_hash_i));
+    end else begin
+      assign awid_hash = slv_req_i.aw.id[0+:AxiLookBits];
+      assign bid_hash = slv_resp_o.b.id[0+:AxiLookBits];
+      assign arid_hash = slv_req_i.ar.id[0+:AxiLookBits];
+      assign rid_hash = slv_resp_o.r.id[0+:AxiLookBits];
+    end
 
 
     //--------------------------------------
@@ -193,6 +250,7 @@ module axi_demux_simple #(
       end
     end
 
+
     // lock the valid signal, as the selection gets pushed into the W FIFO on first assertion,
     // prevent further pushing
     `FFLARN(lock_aw_valid_q, lock_aw_valid_d, load_aw_lock, '0, clk_i, rst_ni)
@@ -214,16 +272,16 @@ module axi_demux_simple #(
       ) i_aw_id_counter (
         .clk_i                        ( clk_i                          ),
         .rst_ni                       ( rst_ni                         ),
-        .lookup_axi_id_i              ( slv_req_i.aw.id[0+:AxiLookBits] ),
+        .lookup_axi_id_i              ( awid_hash                      ),
         .lookup_mst_select_o          ( lookup_aw_select               ),
         .lookup_mst_select_occupied_o ( aw_select_occupied             ),
         .full_o                       ( aw_id_cnt_full                 ),
         .inject_axi_id_i              ( '0                             ),
         .inject_i                     ( 1'b0                           ),
-        .push_axi_id_i                ( slv_req_i.aw.id[0+:AxiLookBits] ),
+        .push_axi_id_i                ( awid_hash                      ),
         .push_mst_select_i            ( slv_aw_select_i                ),
         .push_i                       ( w_cnt_up                       ),
-        .pop_axi_id_i                 ( slv_resp_o.b.id[0+:AxiLookBits]  ),
+        .pop_axi_id_i                 ( bid_hash                       ),
         .pop_i                        ( slv_resp_o.b_valid & slv_req_i.b_ready      ),
         .any_outstanding_trx_o        ( )
       );
@@ -260,7 +318,9 @@ module axi_demux_simple #(
     //--------------------------------------
     //  B Channel
     //--------------------------------------
+    /* verilator lint_off UNOPTFLAT */
     logic [cf_math_pkg::idx_width(NoMstPorts)-1:0] b_idx;
+    /* verilator lint_on UNOPTFLAT */
 
     // Arbitration of the different B responses
     rr_arb_tree #(
@@ -340,6 +400,7 @@ module axi_demux_simple #(
       end
     end
 
+
     // this ff is needed so that ar does not get de-asserted if an atop gets injected
     `FFLARN(lock_ar_valid_q, lock_ar_valid_d, load_ar_lock, '0, clk_i, rst_ni)
 
@@ -360,16 +421,16 @@ module axi_demux_simple #(
       ) i_ar_id_counter (
         .clk_i                        ( clk_i                                       ),
         .rst_ni                       ( rst_ni                                      ),
-        .lookup_axi_id_i              ( slv_req_i.ar.id[0+:AxiLookBits]             ),
+        .lookup_axi_id_i              ( arid_hash                                   ),
         .lookup_mst_select_o          ( lookup_ar_select                            ),
         .lookup_mst_select_occupied_o ( ar_select_occupied                          ),
         .full_o                       ( ar_id_cnt_full                              ),
-        .inject_axi_id_i              ( slv_req_i.aw.id[0+:AxiLookBits]             ),
+        .inject_axi_id_i              ( awid_hash                                   ),
         .inject_i                     ( atop_inject                                 ),
-        .push_axi_id_i                ( slv_req_i.ar.id[0+:AxiLookBits]             ),
+        .push_axi_id_i                ( arid_hash                                   ),
         .push_mst_select_i            ( slv_ar_select_i                             ),
         .push_i                       ( ar_push                                     ),
-        .pop_axi_id_i                 ( slv_resp_o.r.id[0+:AxiLookBits]               ),
+        .pop_axi_id_i                 ( rid_hash                                    ),
         .pop_i                        ( slv_resp_o.r_valid & slv_req_i.r_ready & slv_resp_o.r.last ),
         .any_outstanding_trx_o        ( )
       );
@@ -379,7 +440,9 @@ module axi_demux_simple #(
     //  R Channel
     //--------------------------------------
 
+    /* verilator lint_off UNOPTFLAT */
     logic [cf_math_pkg::idx_width(NoMstPorts)-1:0] r_idx;
+    /* verilator lint_on UNOPTFLAT */
 
     // Arbitration of the different r responses
     rr_arb_tree #(

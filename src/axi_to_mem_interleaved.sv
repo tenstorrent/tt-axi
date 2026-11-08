@@ -114,6 +114,7 @@ module axi_to_mem_interleaved #(
     .clk_i,
     .rst_ni,
     .test_i,
+    .sel_hash_i      ( 2'd0                     ),   // unused
     .slv_req_i       ( axi_req_i                ),
     .slv_ar_select_i ( 1'b0                     ),
     .slv_aw_select_i ( 1'b1                     ),

@@ -211,6 +211,7 @@ import cf_math_pkg::idx_width;
       .clk_i,   // Clock
       .rst_ni,  // Asynchronous reset active low
       .test_i,  // Testmode enable
+      .sel_hash_i      (2'd0                 ),   // unused
       .slv_req_i       ( slv_reqs_mod[i]     ),
       .slv_aw_select_i ( slv_aw_select       ),
       .slv_ar_select_i ( slv_ar_select       ),

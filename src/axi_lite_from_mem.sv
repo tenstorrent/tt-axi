@@ -252,3 +252,6 @@ module axi_lite_from_mem #(
   `endif
   // pragma translate_on
 endmodule
+// Local Variables:
+// verilog-typedef-regexp:"_[t]$"
+// End:

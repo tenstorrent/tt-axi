@@ -136,9 +136,11 @@ package axi_pkg;
 
     // pragma translate_off
     `ifndef VERILATOR
+      if (!$isunknown(len)) begin
       assume (len == len_t'(4'b1) || len == len_t'(4'b11) || len == len_t'(4'b111) ||
           len == len_t'(4'b1111)) else
         $error("AXI BURST_WRAP with not allowed len of: %0h", len);
+      end
     `endif
     // pragma translate_on
 
@@ -313,6 +315,9 @@ package axi_pkg;
       end
       RESP_DECERR: begin
         // No response precedes DECERR.
+        return resp_a;
+      end
+      default: begin
         return resp_a;
       end
     endcase
@@ -511,6 +516,8 @@ package axi_pkg;
     int unsigned   AxiIdUsedSlvPorts;
     /// Are IDs unique?
     bit            UniqueIds;
+    /// Enable hash selection for IDs?
+    bit            SelHashIds;
     /// AXI4+ATOP address field width.
     int unsigned   AxiAddrWidth;
     /// AXI4+ATOP data field width.
@@ -520,6 +527,58 @@ package axi_pkg;
     /// If a transaction can not be routed the xbar will answer with an `axi_pkg::RESP_DECERR`.
     int unsigned   NoAddrRules;
   } xbar_cfg_t;
+
+    /// Configuration for `axi_xbar`.
+  typedef struct packed {
+    /// Number of slave ports of the crossbar.
+    /// This many master modules are connected to it.
+    int unsigned   NoSlvPorts;
+    /// Number of master ports of the crossbar.
+    /// This many slave modules are connected to it.
+    int unsigned   NoMstPorts;
+    /// Maximum number of open transactions each master connected to the crossbar can have in
+    /// flight at the same time.
+    int unsigned   MaxMstTrans;
+    /// Maximum number of open transactions each slave connected to the crossbar can have in
+    /// flight at the same time.
+    int unsigned   MaxSlvTrans;
+    /// Determine if the internal FIFOs of the crossbar are instantiated in fallthrough mode.
+    /// 0: No fallthrough
+    /// 1: Fallthrough
+    bit            FallThrough;
+    /// The Latency mode of the xbar. This determines if the channels on the ports have
+    /// a spill register instantiated.
+    /// Example configurations are provided with the enum `xbar_latency_e`.
+    xbar_latency_e LatencyMode;
+    /// This is the number of `axi_multicut` stages instantiated in the line cross of the channels.
+    /// Having multiple stages can potentially add a large number of FFs!
+    int unsigned   PipelineStages;
+    /// AXI ID width of the salve ports. The ID width of the master ports is determined
+    /// Automatically. See `axi_mux` for details.
+    int unsigned   AxiIdWidthSlvPorts;
+    /// The used ID portion to determine if a different salve is used for the same ID.
+    /// See `axi_demux` for details.
+    int unsigned   AxiIdUsedSlvPorts;
+    /// Are IDs unique?
+    bit            UniqueIds;
+    /// AXI4+ATOP id field width.
+    int unsigned   AxiIdWidth;
+    /// AXI4+ATOP source id field width.
+    int unsigned   AxiSrcIdWidth;
+    /// AXI4+ATOP transaction id field width.
+    int unsigned   AxiTxIdWidth;
+    /// AXI4+ATOP address field width.
+    int unsigned   AxiAddrWidth;
+    /// AXI4+ATOP data field width.
+    int unsigned   AxiDataWidth;
+    /// AXI4+ATOP user field width.
+    int unsigned   AxiUserWidth;
+    /// The number of address rules defined for routing of the transactions.
+    /// Each master port can have multiple rules, should have however at least one.
+    /// If a transaction can not be routed the xbar will answer with an `axi_pkg::RESP_DECERR`.
+    int unsigned   NoAddrRules;
+    int unsigned   NoIdRules;
+  } axinode_cfg_t;
 
   /// Commonly used rule types for `axi_xbar` (64-bit addresses).
   typedef struct packed {
@@ -539,5 +598,268 @@ package axi_pkg;
   function automatic integer unsigned iomsb (input integer unsigned width);
       return (width != 32'd0) ? unsigned'(width-1) : 32'd0;
   endfunction
+
+  /// rule types for `axi_xbar` (27-bit addresses).
+  typedef struct packed {
+    int unsigned idx;
+    logic [26:0] start_addr;
+    logic [26:0] end_addr;
+  } xbar_rule_27_t;
+
+  /// cluster rule types for `axi_xbar` (25-bit addresses).
+  typedef struct packed {
+    int unsigned idx;
+    logic [24:0] start_addr;
+    logic [24:0] end_addr;
+  } cluster_rule_t;
+
+  /// Used rule types for srcId Map (5-bit addresses). for maximum 32 nodes
+  typedef struct packed {
+    int unsigned idx;
+    logic [4:0] start_addr;
+    logic [4:0] end_addr;
+  } srcid_rule_t;
+
+  localparam IdWidth   = 10;
+  localparam UserWidth = 10;
+  localparam AddrWidth_25 = 25;
+  localparam AddrWidth_27 = 27;
+  localparam AddrWidth_32 = 32;
+  localparam DataWidth = 64;
+  localparam DataWidth512 = 512;
+  localparam StrbWidth = DataWidth / 8;
+  localparam StrbWidth512 = DataWidth512 / 8;
+
+  localparam CORE_AXI_ADDR_WIDTH = AddrWidth_25;
+  localparam CORE_AXI_ID_WIDTH = IdWidth;
+  localparam CORE_AXI_DATA_WIDTH = DataWidth;
+
+  typedef logic   [IdWidth-1:0]   id_t;
+  typedef logic [AddrWidth_25-1:0] addr_25_t;
+  typedef logic [AddrWidth_27-1:0] addr_27_t;
+  typedef logic [AddrWidth_32-1:0] addr_32_t;
+  typedef logic [DataWidth-1:0] data_t;
+  typedef logic [DataWidth512-1:0] data_512_t;
+  typedef logic [StrbWidth-1:0] strb_t;
+  typedef logic [StrbWidth512-1:0] strb_512_t;
+  typedef logic [UserWidth-1:0] user_t;
+
+  // AW Channel
+  typedef struct packed {
+      id_t      id;
+      addr_25_t    addr;
+      len_t     len;
+      size_t    size;
+      burst_t   burst;
+      logic     lock;
+      cache_t   cache;
+      prot_t    prot;
+      qos_t     qos;
+      region_t  region;
+      atop_t    atop;
+      user_t    user;
+  } aw_chan_t;
+
+  // W Channel - AXI4 doesn't define a wid
+  typedef struct packed {
+      data_t    data;
+      strb_t    strb;
+      logic     last;
+      user_t    user;
+  } w_chan_t;
+
+  // W Channel - AXI4 doesn't define a wid
+  typedef struct packed {
+      data_512_t    data;
+      strb_512_t    strb;
+      logic     last;
+      user_t    user;
+  } w_512_chan_t;
+  // B Channel
+  typedef struct packed {
+      id_t      id;
+      resp_t    resp;
+      user_t    user;
+  } b_chan_t;
+
+  // AR Channel
+  typedef struct packed {
+      id_t      id;
+      addr_25_t    addr;
+      len_t     len;
+      size_t    size;
+      burst_t   burst;
+      logic     lock;
+      cache_t   cache;
+      prot_t    prot;
+      qos_t     qos;
+      region_t  region;
+      user_t    user;
+  } ar_chan_t;
+
+  // R Channel
+  typedef struct packed {
+      id_t      id;
+      data_t    data;
+      resp_t    resp;
+      logic     last;
+      user_t    user;
+  } r_chan_t;
+
+  // R Channel
+  typedef struct packed {
+      id_t      id;
+      data_512_t    data;
+      resp_t    resp;
+      logic     last;
+      user_t    user;
+  } r_512_chan_t;
+
+  // Request/Response structs
+  typedef struct packed {
+      aw_chan_t aw;
+      logic     aw_valid;
+      w_chan_t  w;
+      logic     w_valid;
+      logic     b_ready;
+      ar_chan_t ar;
+      logic     ar_valid;
+      logic     r_ready;
+  } axi_req_t;
+
+  typedef struct packed {
+      aw_chan_t     aw;
+      logic         aw_valid;
+      w_512_chan_t  w;
+      logic         w_valid;
+      logic         b_ready;
+      ar_chan_t     ar;
+      logic         ar_valid;
+      logic         r_ready;
+  } axi_512_req_t;
+
+  typedef struct packed {
+      logic     aw_ready;
+      logic     w_ready;
+      b_chan_t  b;
+      logic     b_valid;
+      logic     ar_ready;
+      r_chan_t  r;
+      logic     r_valid;
+  } axi_resp_t;
+
+  typedef struct packed {
+      logic     aw_ready;
+      logic     w_ready;
+      b_chan_t  b;
+      logic     b_valid;
+      logic     ar_ready;
+      r_512_chan_t  r;
+      logic     r_valid;
+  } axi_512_resp_t;
+
+  // AW Channel
+  typedef struct packed {
+      id_t      id;
+      addr_32_t    addr;
+      len_t     len;
+      size_t    size;
+      burst_t   burst;
+      logic     lock;
+      cache_t   cache;
+      prot_t    prot;
+      qos_t     qos;
+      region_t  region;
+      atop_t    atop;
+      user_t    user;
+  } aw32_chan_t;
+
+  typedef struct packed {
+      id_t      id;
+      addr_27_t    addr;
+      len_t     len;
+      size_t    size;
+      burst_t   burst;
+      logic     lock;
+      cache_t   cache;
+      prot_t    prot;
+      qos_t     qos;
+      region_t  region;
+      atop_t    atop;
+      user_t    user;
+  } aw27_chan_t;
+
+  // AR Channel
+  typedef struct packed {
+      id_t      id;
+      addr_32_t    addr;
+      len_t     len;
+      size_t    size;
+      burst_t   burst;
+      logic     lock;
+      cache_t   cache;
+      prot_t    prot;
+      qos_t     qos;
+      region_t  region;
+      user_t    user;
+  } ar32_chan_t;
+
+  typedef struct packed {
+      id_t      id;
+      addr_27_t    addr;
+      len_t     len;
+      size_t    size;
+      burst_t   burst;
+      logic     lock;
+      cache_t   cache;
+      prot_t    prot;
+      qos_t     qos;
+      region_t  region;
+      user_t    user;
+  } ar27_chan_t;
+
+  // Request/Response structs
+  typedef struct packed {
+      aw32_chan_t aw;
+      logic     aw_valid;
+      w_chan_t  w;
+      logic     w_valid;
+      logic     b_ready;
+      ar32_chan_t ar;
+      logic     ar_valid;
+      logic     r_ready;
+  } axi32_req_t;
+
+  typedef struct packed {
+      logic     aw_ready;
+      logic     w_ready;
+      b_chan_t  b;
+      logic     b_valid;
+      logic     ar_ready;
+      r_chan_t  r;
+      logic     r_valid;
+  } axi32_resp_t;
+
+  typedef struct packed {
+      aw27_chan_t aw;
+      logic     aw_valid;
+      w_chan_t  w;
+      logic     w_valid;
+      logic     b_ready;
+      ar27_chan_t ar;
+      logic     ar_valid;
+      logic     r_ready;
+  } axi27_req_t;
+
+  typedef struct packed {
+      logic     aw_ready;
+      logic     w_ready;
+      b_chan_t  b;
+      logic     b_valid;
+      logic     ar_ready;
+      r_chan_t  r;
+      logic     r_valid;
+  } axi27_resp_t;
+
 
 endpackage
