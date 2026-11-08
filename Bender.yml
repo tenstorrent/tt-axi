@@ -45,6 +45,7 @@ sources:
   - src/axi_burst_splitter_gran.sv
   - src/axi_burst_unwrap.sv
   - src/axi_bus_compare.sv
+  - src/axi_cdc_clearable.sv
   - src/axi_cdc_dst.sv
   - src/axi_cdc_src.sv
   - src/axi_cut.sv
@@ -54,6 +55,7 @@ sources:
   - src/axi_dw_upsizer.sv
   - src/axi_fifo.sv
   - src/axi_fifo_delay_dyn.sv
+  - src/axi_hidestrb.sv
   - src/axi_id_remap.sv
   - src/axi_id_prepend.sv
   - src/axi_inval_filter.sv
@@ -76,6 +78,7 @@ sources:
   - src/axi_rw_split.sv
   - src/axi_serializer.sv
   - src/axi_slave_compare.sv
+  - src/axi_spill_regs.sv
   - src/axi_throttle.sv
   - src/axi_to_detailed_mem.sv
   # Level 3
