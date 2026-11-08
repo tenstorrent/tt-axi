@@ -23,7 +23,7 @@
 
 // register macros
 `include "common_cells/assertions.svh"
-`include "common_cells/registers.svh"
+`include "ocah_registers.svh"
 
 module axi_mux #(
   // AXI parameter and channel types
@@ -312,7 +312,7 @@ module axi_mux #(
       end
     end
 
-    `FFLARN(lock_aw_valid_q, lock_aw_valid_d, load_aw_lock, '0, clk_i, rst_ni)
+    `OCAH_FFL(lock_aw_valid_q, lock_aw_valid_d, load_aw_lock, '0, clk_i, rst_ni)
 
     fifo_v3 #(
       .FALL_THROUGH ( FallThrough ),
@@ -387,7 +387,8 @@ module axi_mux #(
     assign slv_b_chans  = {NoSlvPorts{mst_b_chan}};
     // control B channel handshake
     assign switch_b_id  = mst_b_chan.id[SlvAxiIDWidth+:MstIdxBits];
-    assign slv_b_valids = (mst_b_valid) ? (1 << switch_b_id) : '0;
+    localparam NoSlvPorts_m_1 = NoSlvPorts - 1;
+    assign slv_b_valids = (mst_b_valid) ? ( {{NoSlvPorts_m_1{1'b0}},{1'b1}} << switch_b_id) : {NoSlvPorts{1'b0}};
 
     spill_register #(
       .T       ( mst_b_chan_t ),
@@ -446,7 +447,8 @@ module axi_mux #(
     assign slv_r_chans  = {NoSlvPorts{mst_r_chan}};
     // R channel handshake control
     assign switch_r_id  = mst_r_chan.id[SlvAxiIDWidth+:MstIdxBits];
-    assign slv_r_valids = (mst_r_valid) ? (1 << switch_r_id) : '0;
+
+    assign slv_r_valids = (mst_r_valid) ? ({{NoSlvPorts_m_1{1'b0}},{1'b1}} << switch_r_id) : {NoSlvPorts{1'b0}};
 
     spill_register #(
       .T       ( mst_r_chan_t ),

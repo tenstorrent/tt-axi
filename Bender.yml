@@ -19,7 +19,7 @@ package:
     - "Florian Zaruba <zarubaf@iis.ee.ethz.ch>"
 
 dependencies:
-  common_cells: { git: "https://github.com/tenstorrent/tt-common_cells.git", rev: "a4fdd4e426f0f087cbf87b90b602cb45844b8127" }
+  common_cells: { git: "https://github.com/tenstorrent/tt-common_cells.git", rev: "aa7f76b91d6173db517e01ffa91dd9a3372da447" }
   common_verification: { git: "https://github.com/pulp-platform/common_verification.git", version: 0.2.5 }
   tech_cells_generic:  { git: "https://github.com/pulp-platform/tech_cells_generic.git", version: 0.2.2 }
 
@@ -36,10 +36,16 @@ sources:
   - src/axi_demux_id_counters.sv
   - src/axi_intf.sv
   # Level 2
+  - src/axi5_lite_demux.sv
+  - src/axi5_lite_demux_brcst.sv
+  - src/axi5_lite_mux.sv
+  - src/axi5_lite_mux_brcst.sv
+  - src/axi5_lite_to_axi5.sv
   - src/axi_atop_filter.sv
   - src/axi_burst_splitter_gran.sv
   - src/axi_burst_unwrap.sv
   - src/axi_bus_compare.sv
+  - src/axi_cdc_clearable.sv
   - src/axi_cdc_dst.sv
   - src/axi_cdc_src.sv
   - src/axi_cut.sv
@@ -49,6 +55,7 @@ sources:
   - src/axi_dw_upsizer.sv
   - src/axi_fifo.sv
   - src/axi_fifo_delay_dyn.sv
+  - src/axi_hidestrb.sv
   - src/axi_id_remap.sv
   - src/axi_id_prepend.sv
   - src/axi_inval_filter.sv
@@ -71,6 +78,7 @@ sources:
   - src/axi_rw_split.sv
   - src/axi_serializer.sv
   - src/axi_slave_compare.sv
+  - src/axi_spill_regs.sv
   - src/axi_throttle.sv
   - src/axi_to_detailed_mem.sv
   # Level 3
@@ -87,6 +95,8 @@ sources:
   - src/axi_to_mem.sv
   - src/axi_zero_mem.sv
   # Level 4
+  - src/axi5_lite_xbar.sv
+  - src/axi5_lite_xbar_brcst.sv
   - src/axi_interleaved_xbar.sv
   - src/axi_iw_converter.sv
   - src/axi_lite_xbar.sv

@@ -15,7 +15,7 @@
 // - Andreas Kurth <akurth@iis.ee.ethz.ch>
 
 `include "common_cells/assertions.svh"
-`include "common_cells/registers.svh"
+`include "ocah_registers.svh"
 
 `ifdef QUESTA
 // Derive `TARGET_VSIM`, which is used for tool-specific workarounds in this file, from `QUESTA`,
@@ -53,6 +53,7 @@ module axi_demux #(
   parameter int unsigned MaxTrans       = 32'd8,
   parameter int unsigned AxiLookBits    = 32'd3,
   parameter bit          UniqueIds      = 1'b0,
+  parameter bit          SelHashIds     = 1'b0,
   parameter bit          SpillAw        = 1'b1,
   parameter bit          SpillW         = 1'b0,
   parameter bit          SpillB         = 1'b0,
@@ -65,6 +66,7 @@ module axi_demux #(
   input  logic                          clk_i,
   input  logic                          rst_ni,
   input  logic                          test_i,
+  input  logic        [1:0]             sel_hash_i,
   // Slave Port
   input  axi_req_t                      slv_req_i,
   input  select_t                       slv_aw_select_i,
@@ -194,11 +196,13 @@ module axi_demux #(
     .NoMstPorts ( NoMstPorts  ),
     .MaxTrans   ( MaxTrans    ),
     .AxiLookBits( AxiLookBits ),
-    .UniqueIds  ( UniqueIds   )
+    .UniqueIds  ( UniqueIds   ),
+    .SelHashIds ( SelHashIds  )
   ) i_demux_simple (
     .clk_i,
     .rst_ni,
     .test_i,
+    .sel_hash_i,
 
     .slv_req_i       ( slv_req_cut   ),
     .slv_aw_select_i ( slv_aw_select ),
@@ -223,6 +227,7 @@ module axi_demux_intf #(
   parameter int unsigned MAX_TRANS        = 32'd8,
   parameter int unsigned AXI_LOOK_BITS    = 32'd3,
   parameter bit          UNIQUE_IDS       = 1'b0,
+  parameter bit          SEL_HASH_IDS     = 1'b0,
   parameter bit          SPILL_AW         = 1'b1,
   parameter bit          SPILL_W          = 1'b0,
   parameter bit          SPILL_B          = 1'b0,
@@ -235,6 +240,7 @@ module axi_demux_intf #(
   input  logic    clk_i,                 // Clock
   input  logic    rst_ni,                // Asynchronous reset active low
   input  logic    test_i,                // Testmode enable
+  input  logic    [1:0] sel_hash_i,      // Hash selection, if enabled
   input  select_t slv_aw_select_i,       // has to be stable, when aw_valid
   input  select_t slv_ar_select_i,       // has to be stable, when ar_valid
   AXI_BUS.Slave   slv,                   // slave port
@@ -281,6 +287,7 @@ module axi_demux_intf #(
     .MaxTrans       ( MAX_TRANS     ),
     .AxiLookBits    ( AXI_LOOK_BITS ),
     .UniqueIds      ( UNIQUE_IDS    ),
+    .SelHashIds     ( SEL_HASH_IDS  ),
     .SpillAw        ( SPILL_AW      ),
     .SpillW         ( SPILL_W       ),
     .SpillB         ( SPILL_B       ),
@@ -290,6 +297,7 @@ module axi_demux_intf #(
     .clk_i,   // Clock
     .rst_ni,  // Asynchronous reset active low
     .test_i,  // Testmode enable
+    .sel_hash_i, // Hash selection (if enabled)
     // slave port
     .slv_req_i       ( slv_req         ),
     .slv_aw_select_i ( slv_aw_select_i ),

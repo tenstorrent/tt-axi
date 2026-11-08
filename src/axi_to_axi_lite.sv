@@ -24,6 +24,11 @@ module axi_to_axi_lite #(
   parameter int unsigned AxiMaxReadTxns  = 32'd0,
   parameter bit          FullBW          = 0,     // ID Queue in Full BW mode in axi_burst_splitter
   parameter bit          FallThrough     = 1'b1,  // FIFOs in Fall through mode in ID reflect
+  parameter bit          SpillAw         = 1'b0,  // Spill register control
+  parameter bit          SpillW          = 1'b0,
+  parameter bit          SpillB          = 1'b0,
+  parameter bit          SpillAr         = 1'b0,
+  parameter bit          SpillR          = 1'b0,
   parameter type         full_req_t      = logic,
   parameter type         full_resp_t     = logic,
   parameter type         lite_req_t      = logic,
@@ -63,6 +68,11 @@ module axi_to_axi_lite #(
     .MaxReadTxns  ( AxiMaxReadTxns  ),
     .MaxWriteTxns ( AxiMaxWriteTxns ),
     .FullBW       ( FullBW          ),
+    .SpillAw      ( SpillAw         ),
+    .SpillW       ( SpillW          ),
+    .SpillB       ( SpillB          ),
+    .SpillAr      ( SpillAr         ),
+    .SpillR       ( SpillR          ),
     .AddrWidth    ( AxiAddrWidth    ),
     .DataWidth    ( AxiDataWidth    ),
     .IdWidth      ( AxiIdWidth      ),
@@ -258,7 +268,13 @@ module axi_to_axi_lite_intf #(
   /// Maximum number of outstanding reads.
   parameter int unsigned AXI_MAX_READ_TXNS  = 32'd1,
   parameter bit          FALL_THROUGH       = 1'b1,
-  parameter bit          FULL_BW            = 0
+  parameter bit          FULL_BW            = 0,
+  // Spill register control
+  parameter bit          SPILL_AW           = 1'b0,
+  parameter bit          SPILL_W            = 1'b0,
+  parameter bit          SPILL_B            = 1'b0,
+  parameter bit          SPILL_AR           = 1'b0,
+  parameter bit          SPILL_R            = 1'b0
 ) (
   input logic     clk_i,
   input logic     rst_ni,
@@ -308,6 +324,11 @@ module axi_to_axi_lite_intf #(
     .AxiMaxReadTxns  ( AXI_MAX_READ_TXNS  ),
     .FallThrough     ( FALL_THROUGH       ),  // FIFOs in Fall through mode in ID reflect
     .FullBW          ( FULL_BW            ),
+    .SpillAw         ( SPILL_AW           ),
+    .SpillW          ( SPILL_W            ),
+    .SpillB          ( SPILL_B            ),
+    .SpillAr         ( SPILL_AR           ),
+    .SpillR          ( SPILL_R            ),
     .full_req_t      ( full_req_t         ),
     .full_resp_t     ( full_resp_t        ),
     .lite_req_t      ( lite_req_t         ),

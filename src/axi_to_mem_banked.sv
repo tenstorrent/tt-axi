@@ -160,6 +160,7 @@ module axi_to_mem_banked #(
     .clk_i,
     .rst_ni,
     .test_i,
+    .sel_hash_i      ( 2'd0          ),   // unused
     .slv_req_i       ( axi_req_i     ),
     .slv_aw_select_i ( WriteAccess   ),
     .slv_ar_select_i ( ReadAccess    ),

@@ -14,7 +14,7 @@
 // - Andreas Kurth <akurth@iis.ee.ethz.ch>
 
 `include "axi/typedef.svh"
-`include "common_cells/registers.svh"
+`include "ocah_registers.svh"
 
 /// This module can isolate the AXI4+ATOPs bus on the master port from the slave port.  When the
 /// isolation is not active, the two ports are directly connected.
@@ -178,6 +178,7 @@ module axi_isolate #(
       .clk_i,
       .rst_ni,
       .test_i          ( 1'b0          ),
+      .sel_hash_i      ( 2'd0          ),   // unused
       .slv_req_i       ( demux_slv_req ),
       .slv_aw_select_i ( sel_aw_q      ),
       .slv_ar_select_i ( sel_ar_q      ),
@@ -276,11 +277,11 @@ module axi_isolate_inner #(
   cnt_t pending_ar_d,  pending_ar_q;
   logic update_ar_cnt;
 
-  `FFLARN(pending_aw_q, pending_aw_d, update_aw_cnt, '0, clk_i, rst_ni)
-  `FFLARN(pending_w_q, pending_w_d, update_w_cnt, '0, clk_i, rst_ni)
-  `FFLARN(pending_ar_q, pending_ar_d, update_ar_cnt, '0, clk_i, rst_ni)
-  `FFLARN(state_aw_q, state_aw_d, update_aw_state, Isolate, clk_i, rst_ni)
-  `FFLARN(state_ar_q, state_ar_d, update_ar_state, Isolate, clk_i, rst_ni)
+  `OCAH_FFL(pending_aw_q, pending_aw_d, update_aw_cnt, '0, clk_i, rst_ni)
+  `OCAH_FFL(pending_w_q, pending_w_d, update_w_cnt, '0, clk_i, rst_ni)
+  `OCAH_FFL(pending_ar_q, pending_ar_d, update_ar_cnt, '0, clk_i, rst_ni)
+  `OCAH_FFL(state_aw_q, state_aw_d, update_aw_state, Isolate, clk_i, rst_ni)
+  `OCAH_FFL(state_ar_q, state_ar_d, update_ar_state, Isolate, clk_i, rst_ni)
 
   // Delay a channel's flush while VALID is held without READY.
   logic flush_aw_ok, flush_w_ok, flush_ar_ok;

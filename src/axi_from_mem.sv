@@ -122,3 +122,6 @@ module axi_from_mem #(
   );
 
 endmodule
+// Local Variables:
+// verilog-typedef-regexp:"_t$"
+// End:

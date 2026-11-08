@@ -77,6 +77,9 @@ module axi_id_prepend #(
   output logic         [NoBus-1:0] mst_r_readies_o
 );
 
+  localparam size_b_chan = $bits(slv_b_chan_t);
+  localparam size_r_chan = $bits(slv_r_chan_t);
+
   // prepend the ID
   for (genvar i = 0; i < NoBus; i++) begin : gen_id_prepend
     if (PreIdWidth == 0) begin : gen_no_prepend

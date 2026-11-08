@@ -235,3 +235,6 @@ module axi_lite_multicut_intf #(
   `endif
   // pragma translate_on
 endmodule
+// Local Variables:
+// verilog-typedef-regexp:"_t$"
+// End:

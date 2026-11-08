@@ -8,7 +8,7 @@
 // - Thomas Benz <tbenz@iis.ee.ethz.ch>
 
 `include "axi/typedef.svh"
-`include "common_cells/registers.svh"
+`include "ocah_registers.svh"
 
 /// Split AXI4 bursts into single-beat transactions.
 ///
@@ -93,6 +93,7 @@ module axi_burst_splitter_gran #(
     .clk_i,
     .rst_ni,
     .test_i           ( 1'b0                          ),
+    .sel_hash_i       ( '0                            ),
     .slv_req_i        ( slv_req ),
     .slv_aw_select_i  ( sel_aw_unsupported            ),
     .slv_ar_select_i  ( sel_ar_unsupported            ),
@@ -100,6 +101,7 @@ module axi_burst_splitter_gran #(
     .mst_reqs_o       ( {unsupported_req,  act_req}   ),
     .mst_resps_i      ( {unsupported_resp, act_resp}  )
   );
+
 
   // Define supported transactions.
   function bit txn_supported(axi_pkg::atop_t atop, axi_pkg::burst_t burst, axi_pkg::cache_t cache,
@@ -250,7 +252,9 @@ module axi_burst_splitter_gran #(
           if (w_cnt_gnt) begin
             if (w_cnt_len < ({1'b0, len_limit_i} + 9'h001)) begin
               act_resp.b = mst_resp_i.b;
-              if (w_cnt_err) begin
+              // An error beat keeps its own response. SLVERR replaces only an
+              // OKAY or EXOKAY beat whose earlier fragment of this split burst erred.
+              if (w_cnt_err && !mst_resp_i.b.resp[1]) begin
                 act_resp.b.resp = axi_pkg::RESP_SLVERR;
               end
               act_resp.b_valid  = 1'b1;
@@ -270,7 +274,9 @@ module axi_burst_splitter_gran #(
       end
       BWait: begin
         act_resp.b = mst_resp_i.b;
-        if (b_err_q) begin
+        // An error beat keeps its own response. SLVERR replaces only an
+        // OKAY or EXOKAY beat whose earlier fragment of this split burst erred.
+        if (b_err_q && !mst_resp_i.b.resp[1]) begin
           act_resp.b.resp = axi_pkg::RESP_SLVERR;
         end
         act_resp.b_valid  = 1'b1;
@@ -384,12 +390,12 @@ module axi_burst_splitter_gran #(
   // --------------------------------------------------
   // Flip-Flops
   // --------------------------------------------------
-  `FFARN(b_err_q, b_err_d, 1'b0, clk_i, rst_ni)
-  `FFARN(b_state_q, b_state_d, BReady, clk_i, rst_ni)
-  `FFARN(r_last_q, r_last_d, 1'b0, clk_i, rst_ni)
-  `FFARN(r_state_q, r_state_d, RFeedthrough, clk_i, rst_ni)
-  `FFARN(w_len_q, w_len_d, 8'h00, clk_i, rst_ni)
-  `FFARN(w_len_vld_q, w_len_vld_d, 1'b0, clk_i, rst_ni)
+  `OCAH_FF(b_err_q, b_err_d, 1'b0, clk_i, rst_ni)
+  `OCAH_FF(b_state_q, b_state_d, BReady, clk_i, rst_ni)
+  `OCAH_FF(r_last_q, r_last_d, 1'b0, clk_i, rst_ni)
+  `OCAH_FF(r_state_q, r_state_d, RFeedthrough, clk_i, rst_ni)
+  `OCAH_FF(w_len_q, w_len_d, 8'h00, clk_i, rst_ni)
+  `OCAH_FF(w_len_vld_q, w_len_vld_d, 1'b0, clk_i, rst_ni)
 
   // --------------------------------------------------
   // Assumptions and assertions
@@ -572,9 +578,9 @@ module axi_burst_splitter_gran_ax_chan #(
   end
 
   // registers
-  `FFARN(ax_q, ax_d, '0, clk_i, rst_ni)
-  `FFARN(state_q, state_d, Idle, clk_i, rst_ni)
-  `FFARN(num_beats_q, num_beats_d, 9'h000, clk_i, rst_ni)
+  `OCAH_FF(ax_q, ax_d, '0, clk_i, rst_ni)
+  `OCAH_FF(state_q, state_d, Idle, clk_i, rst_ni)
+  `OCAH_FF(num_beats_q, num_beats_d, 9'h000, clk_i, rst_ni)
 endmodule
 
 
@@ -663,7 +669,7 @@ module axi_burst_splitter_gran_counters #(
     );
     assign cnt_free[i] = (cnt_oup[i] == '0);
   end
-  assign cnt_inp = {1'b0, alloc_pld_out.len} + 1;
+  assign cnt_inp = {1'b0, alloc_pld_out.len} + 1'b1;
 
   lzc #(
     .WIDTH  ( MaxTxns ),
@@ -706,7 +712,7 @@ module axi_burst_splitter_gran_counters #(
   assign alloc_gnt   = idq_inp_gnt & |(cnt_free);
   assign cnt_gnt_o   = idq_oup_gnt & idq_oup_valid;
   logic [8:0] read_len;
-  assign read_len    = cnt_oup[cnt_r_idx] - 1;
+  assign read_len    = cnt_oup[cnt_r_idx] - 1'b1;
   assign cnt_len_o   = read_len[7:0];
 
   assign idq_oup_pop = cnt_req_i & cnt_gnt_o & cnt_dec_i & (cnt_len_o < cnt_delta_i);
@@ -731,7 +737,7 @@ module axi_burst_splitter_gran_counters #(
   end
 
   // registers
-  `FFARN(err_q, err_d, '0, clk_i, rst_ni)
+  `OCAH_FF(err_q, err_d, '0, clk_i, rst_ni)
 
   `ifndef VERILATOR
   // pragma translate_off
