@@ -539,6 +539,95 @@
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+// Internal implementation for assigning one Lite structs or interface to another struct or
+// interface.  The path to the signals on each side is defined by the `__sep*` arguments.  The
+// `__opt_as` argument allows to use this standalne (with `__opt_as = assign`) or in assignments
+// inside processes (with `__opt_as` void).
+`define __AXI5_LITE_TO_AX(__opt_as, __lhs, __lhs_sep, __rhs, __rhs_sep)  \
+  __opt_as __lhs``__lhs_sep``id   = __rhs``__rhs_sep``id;               \
+  __opt_as __lhs``__lhs_sep``addr = __rhs``__rhs_sep``addr;             \
+  __opt_as __lhs``__lhs_sep``prot = __rhs``__rhs_sep``prot;
+`define __AXI5_LITE_TO_W(__opt_as, __lhs, __lhs_sep, __rhs, __rhs_sep) \
+  __opt_as __lhs``__lhs_sep``data = __rhs``__rhs_sep``data;           \
+  __opt_as __lhs``__lhs_sep``strb = __rhs``__rhs_sep``strb;           \
+  __opt_as __lhs``__lhs_sep``user   = __rhs``__rhs_sep``user;
+`define __AXI5_LITE_TO_B(__opt_as, __lhs, __lhs_sep, __rhs, __rhs_sep) \
+  __opt_as __lhs``__lhs_sep``id   = __rhs``__rhs_sep``id;             \
+  __opt_as __lhs``__lhs_sep``resp = __rhs``__rhs_sep``resp;
+`define __AXI5_LITE_TO_R(__opt_as, __lhs, __lhs_sep, __rhs, __rhs_sep) \
+  __opt_as __lhs``__lhs_sep``id   = __rhs``__rhs_sep``id;             \
+  __opt_as __lhs``__lhs_sep``data = __rhs``__rhs_sep``data;           \
+  __opt_as __lhs``__lhs_sep``resp = __rhs``__rhs_sep``resp;
+`define __AXI5_LITE_TO_REQ(__opt_as, __lhs, __lhs_sep, __rhs, __rhs_sep) \
+  `__AXI5_LITE_TO_AX(__opt_as, __lhs.aw, __lhs_sep, __rhs.aw, __rhs_sep) \
+  __opt_as __lhs.aw_valid = __rhs.aw_valid;                             \
+  `__AXI5_LITE_TO_W(__opt_as, __lhs.w, __lhs_sep, __rhs.w, __rhs_sep)    \
+  __opt_as __lhs.w_valid = __rhs.w_valid;                               \
+  __opt_as __lhs.b_ready = __rhs.b_ready;                               \
+  `__AXI5_LITE_TO_AX(__opt_as, __lhs.ar, __lhs_sep, __rhs.ar, __rhs_sep) \
+  __opt_as __lhs.ar_valid = __rhs.ar_valid;                             \
+  __opt_as __lhs.r_ready = __rhs.r_ready;
+`define __AXI5_LITE_TO_RESP(__opt_as, __lhs, __lhs_sep, __rhs, __rhs_sep)  \
+  __opt_as __lhs.aw_ready = __rhs.aw_ready;                               \
+  __opt_as __lhs.ar_ready = __rhs.ar_ready;                               \
+  __opt_as __lhs.w_ready = __rhs.w_ready;                                 \
+  __opt_as __lhs.b_valid = __rhs.b_valid;                                 \
+  `__AXI5_LITE_TO_B(__opt_as, __lhs.b, __lhs_sep, __rhs.b, __rhs_sep)      \
+  __opt_as __lhs.r_valid = __rhs.r_valid;                                 \
+  `__AXI5_LITE_TO_R(__opt_as, __lhs.r, __lhs_sep, __rhs.r, __rhs_sep)
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Assigning a Lite interface from channel or request/response structs outside a process.
+//
+// The channel macros `AXI5_LITE_ASSIGN_FROM_XX(axi_if, xx_struct)` assign the payload signals of the
+// `axi_if` interface from the signals in `xx_struct`.  They do not assign the handshake signals.
+// The request macro `AXI5_LITE_ASSIGN_FROM_REQ(axi_if, req_struct)` assigns all request channels
+// (AW, W, AR) and the request-side handshake signals (AW, W, and AR valid and B and R ready) of the
+// `axi_if` interface from the signals in `req_struct`.
+// The response macro `AXI5_LITE_ASSIGN_FROM_RESP(axi_if, resp_struct)` assigns both response
+// channels (B and R) and the response-side handshake signals (B and R valid and AW, W, and AR
+// ready) of the `axi_if` interface from the signals in `resp_struct`.
+//
+// Usage Example:
+// `AXI5_LITE_ASSIGN_FROM_REQ(my_if, my_req_struct)
+`define AXI5_LITE_ASSIGN_FROM_AW(axi_if, aw_struct)     `__AXI5_LITE_TO_AX(assign, axi_if.aw, _, aw_struct, .)
+`define AXI5_LITE_ASSIGN_FROM_W(axi_if, w_struct)       `__AXI5_LITE_TO_W(assign, axi_if.w, _, w_struct, .)
+`define AXI5_LITE_ASSIGN_FROM_B(axi_if, b_struct)       `__AXI5_LITE_TO_B(assign, axi_if.b, _, b_struct, .)
+`define AXI5_LITE_ASSIGN_FROM_AR(axi_if, ar_struct)     `__AXI5_LITE_TO_AX(assign, axi_if.ar, _, ar_struct, .)
+`define AXI5_LITE_ASSIGN_FROM_R(axi_if, r_struct)       `__AXI5_LITE_TO_R(assign, axi_if.r, _, r_struct, .)
+`define AXI5_LITE_ASSIGN_FROM_REQ(axi_if, req_struct)   `__AXI5_LITE_TO_REQ(assign, axi_if, _, req_struct, .)
+`define AXI5_LITE_ASSIGN_FROM_RESP(axi_if, resp_struct) `__AXI5_LITE_TO_RESP(assign, axi_if, _, resp_struct, .)
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Assigning channel or request/response structs from an interface outside a process.
+//
+// The channel macros `AXI5_LITE_ASSIGN_TO_XX(xx_struct, axi_if)` assign the signals of `xx_struct`
+// to the payload signals of that channel in the `axi_if` interface.  They do not assign the
+// handshake signals.
+// The request macro `AXI5_LITE_ASSIGN_TO_REQ(axi_if, req_struct)` assigns all signals of
+// `req_struct` (i.e., request channel (AW, W, AR) payload and request-side handshake signals (AW,
+// W, and AR valid and B and R ready)) to the signals in the `axi_if` interface.
+// The response macro `AXI5_LITE_ASSIGN_TO_RESP(axi_if, resp_struct)` assigns all signals of
+// `resp_struct` (i.e., response channel (B and R) payload and response-side handshake signals (B
+// and R valid and AW, W, and AR ready)) to the signals in the `axi_if` interface.
+//
+// Usage Example:
+// `AXI5_LITE_ASSIGN_TO_REQ(my_req_struct, my_if)
+`define AXI5_LITE_ASSIGN_TO_AW(aw_struct, axi_if)     `__AXI5_LITE_TO_AX(assign, aw_struct, ., axi_if.aw, _)
+`define AXI5_LITE_ASSIGN_TO_W(w_struct, axi_if)       `__AXI5_LITE_TO_W(assign, w_struct, ., axi_if.w, _)
+`define AXI5_LITE_ASSIGN_TO_B(b_struct, axi_if)       `__AXI5_LITE_TO_B(assign, b_struct, ., axi_if.b, _)
+`define AXI5_LITE_ASSIGN_TO_AR(ar_struct, axi_if)     `__AXI5_LITE_TO_AX(assign, ar_struct, ., axi_if.ar, _)
+`define AXI5_LITE_ASSIGN_TO_R(r_struct, axi_if)       `__AXI5_LITE_TO_R(assign, r_struct, ., axi_if.r, _)
+`define AXI5_LITE_ASSIGN_TO_REQ(req_struct, axi_if)   `__AXI5_LITE_TO_REQ(assign, req_struct, ., axi_if, _)
+`define AXI5_LITE_ASSIGN_TO_RESP(resp_struct, axi_if) `__AXI5_LITE_TO_RESP(assign, resp_struct, ., axi_if, _)
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 // Macros for assigning flattened AXI ports to req/resp AXI structs
 // Flat AXI ports are required by the Vivado IP Integrator. Vivado naming convention is followed.
 //
